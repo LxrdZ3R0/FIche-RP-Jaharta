@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>JAHARTA // PNJ Importants</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=Share+Tech+Mono&family=Rajdhani:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--cyan:#00f5ff;--magenta:#ff006e;--gold:#ffd60a;--dark:#04060f;--dark2:#080d1a;--panel:rgba(0,245,255,0.035);--border:rgba(0,245,255,0.16);--text:#c8e0f0;--muted:#5a7a90;}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}html{scroll-behavior:smooth;}
+body{background:var(--dark);color:var(--text);font-family:'Rajdhani',sans-serif;font-size:16px;min-height:100vh;overflow-x:hidden;cursor:crosshair;}
+body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.055) 2px,rgba(0,0,0,0.055) 4px);pointer-events:none;z-index:9999;}
+body::after{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(255,0,110,0.02) 1px,transparent 1px),linear-gradient(90deg,rgba(255,0,110,0.02) 1px,transparent 1px);background-size:60px 60px;pointer-events:none;z-index:0;}
+header{position:sticky;top:0;z-index:100;padding:0 44px;height:68px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);background:rgba(4,6,15,0.96);backdrop-filter:blur(18px);}
+.logo{font-family:'Orbitron',sans-serif;font-weight:900;font-size:1.35rem;letter-spacing:0.32em;color:var(--cyan);text-shadow:0 0 22px var(--cyan);text-decoration:none;}
+.logo-slash{color:var(--magenta);text-shadow:0 0 18px var(--magenta);}
+.logo-sub{font-family:'Share Tech Mono',monospace;font-size:0.46rem;color:var(--muted);letter-spacing:0.2em;display:block;margin-top:2px;}
+nav{display:flex;gap:2px;align-items:center;}
+nav a{font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:var(--muted);text-decoration:none;letter-spacing:0.13em;text-transform:uppercase;padding:8px 13px;border:1px solid transparent;transition:all 0.2s;position:relative;}
+nav a:hover{color:var(--cyan);border-color:rgba(0,245,255,0.2);background:rgba(0,245,255,0.03);}
+nav a.active{color:var(--magenta);border-color:rgba(255,0,110,0.22);background:rgba(255,0,110,0.05);}
+nav a.active::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:1px;background:var(--magenta);box-shadow:0 0 8px var(--magenta);}
+.nav-admin{color:var(--gold)!important;border-color:rgba(255,214,10,0.22)!important;font-family:'Orbitron',sans-serif!important;font-weight:700!important;font-size:0.58rem!important;letter-spacing:0.18em!important;margin-left:6px;}
+.nav-admin:hover{border-color:var(--gold)!important;background:rgba(255,214,10,0.05)!important;}
+
+/* PAGE HERO */
+.page-hero{position:relative;z-index:1;padding:52px 44px 44px;border-bottom:1px solid rgba(255,0,110,0.15);background:linear-gradient(180deg,rgba(255,0,110,0.04) 0%,transparent 100%);overflow:hidden;}
+.page-hero::before{content:'';position:absolute;top:-60px;left:50%;transform:translateX(-50%);width:700px;height:400px;background:radial-gradient(ellipse,rgba(255,0,110,0.07) 0%,transparent 65%);pointer-events:none;}
+.page-hero-inner{max-width:1380px;margin:0 auto;position:relative;z-index:1;}
+.ph-tag{font-family:'Share Tech Mono',monospace;font-size:0.62rem;letter-spacing:0.4em;color:var(--magenta);text-shadow:0 0 10px var(--magenta);margin-bottom:10px;}
+.ph-title{font-family:'Orbitron',sans-serif;font-weight:900;font-size:clamp(2rem,5vw,3.4rem);color:#fff;letter-spacing:0.06em;line-height:1;}
+.ph-title span{color:var(--magenta);text-shadow:0 0 22px var(--magenta);}
+.ph-sub{font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:var(--muted);letter-spacing:0.15em;margin-top:10px;max-width:600px;line-height:1.7;}
+.ph-warn{display:inline-flex;align-items:center;gap:8px;margin-top:18px;font-family:'Share Tech Mono',monospace;font-size:0.6rem;letter-spacing:0.14em;color:var(--gold);border:1px solid rgba(255,214,10,0.3);padding:8px 16px;background:rgba(255,214,10,0.05);}
+
+/* PAGE WRAP */
+.page-wrap{position:relative;z-index:1;padding:52px 44px;max-width:1380px;margin:0 auto;}
+
+/* CATEGORY FILTER */
+.cat-filter{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:40px;padding-bottom:18px;border-bottom:1px solid var(--border);}
+.cat-btn{font-family:'Share Tech Mono',monospace;font-size:0.64rem;letter-spacing:0.13em;text-transform:uppercase;background:transparent;border:1px solid;padding:7px 14px;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.22s;}
+.cat-btn.active,.cat-btn:hover{background:rgba(255,255,255,0.035);}
+.cat-btn[data-cat="all"]      {color:var(--text);border-color:rgba(200,224,240,0.22);}
+.cat-btn[data-cat="all"].active{background:rgba(255,255,255,0.04);}
+.cat-btn[data-cat="politique"] {color:#60a5fa;border-color:rgba(96,165,250,0.25);}
+.cat-btn[data-cat="politique"].active,.cat-btn[data-cat="politique"]:hover{background:rgba(96,165,250,0.05);}
+.cat-btn[data-cat="mystique"]  {color:#b06eff;border-color:rgba(176,110,255,0.25);}
+.cat-btn[data-cat="mystique"].active,.cat-btn[data-cat="mystique"]:hover{background:rgba(176,110,255,0.05);}
+.cat-btn[data-cat="ennemi"]    {color:#ff3030;border-color:rgba(255,48,48,0.25);}
+.cat-btn[data-cat="ennemi"].active,.cat-btn[data-cat="ennemi"]:hover{background:rgba(255,48,48,0.05);}
+.cat-btn[data-cat="allie"]     {color:#34d399;border-color:rgba(52,211,153,0.25);}
+.cat-btn[data-cat="allie"].active,.cat-btn[data-cat="allie"]:hover{background:rgba(52,211,153,0.05);}
+.cat-btn[data-cat="neutre"]    {color:#fbbf24;border-color:rgba(251,191,36,0.25);}
+.cat-btn[data-cat="neutre"].active,.cat-btn[data-cat="neutre"]:hover{background:rgba(251,191,36,0.05);}
+
+/* PNJ GRID */
+.pnj-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:24px;}
+
+.pnj-card{position:relative;background:var(--dark2);border:1px solid var(--border);overflow:hidden;display:flex;flex-direction:column;transition:border-color .3s,box-shadow .3s,transform .28s;clip-path:polygon(24px 0%,100% 0%,100% calc(100% - 24px),calc(100% - 24px) 100%,0% 100%,0% 24px);}
+.pnj-card:hover{transform:translateY(-6px);}
+.pnj-card[data-cat="politique"]:hover{border-color:#60a5fa;box-shadow:0 0 28px rgba(96,165,250,0.14),0 12px 38px rgba(0,0,0,0.5);}
+.pnj-card[data-cat="mystique"]:hover {border-color:#b06eff;box-shadow:0 0 28px rgba(176,110,255,0.14),0 12px 38px rgba(0,0,0,0.5);}
+.pnj-card[data-cat="ennemi"]:hover   {border-color:#ff3030;box-shadow:0 0 28px rgba(255,48,48,0.16),0 12px 38px rgba(0,0,0,0.5);}
+.pnj-card[data-cat="allie"]:hover    {border-color:#34d399;box-shadow:0 0 28px rgba(52,211,153,0.14),0 12px 38px rgba(0,0,0,0.5);}
+.pnj-card[data-cat="neutre"]:hover   {border-color:#fbbf24;box-shadow:0 0 28px rgba(251,191,36,0.14),0 12px 38px rgba(0,0,0,0.5);}
+
+/* PNJ PHOTO */
+.pnj-photo{position:relative;width:100%;height:240px;overflow:hidden;flex-shrink:0;background:#0a0408;}
+.pnj-photo img{width:100%;height:100%;object-fit:cover;object-position:top;filter:saturate(1.05) contrast(1.08);transition:transform .5s,filter .4s;}
+.pnj-card:hover .pnj-photo img{transform:scale(1.06);filter:saturate(1.25) contrast(1.12);}
+.pnj-photo-ov{position:absolute;inset:0;pointer-events:none;}
+.pnj-photo-ph{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-family:'Orbitron',sans-serif;font-size:3rem;font-weight:900;opacity:0.4;}
+.pnj-stripe{position:absolute;top:0;left:0;right:0;height:3px;z-index:2;}
+
+/* DANGER BADGE */
+.danger-badge{position:absolute;top:12px;left:12px;z-index:3;font-family:'Orbitron',sans-serif;font-weight:800;font-size:.6rem;letter-spacing:.12em;padding:5px 12px;border:1px solid;text-transform:uppercase;}
+
+/* CAT BADGE */
+.cat-badge{position:absolute;top:12px;right:12px;z-index:3;font-family:'Share Tech Mono',monospace;font-size:.54rem;letter-spacing:.16em;text-transform:uppercase;padding:4px 10px;border:1px solid;}
+
+/* PNJ BODY */
+.pnj-body{padding:20px 22px 22px;display:flex;flex-direction:column;flex:1;}
+.pnj-title{font-family:'Orbitron',sans-serif;font-weight:800;font-size:1.1rem;color:#fff;letter-spacing:.06em;line-height:1.05;margin-bottom:4px;}
+.pnj-epithet{font-family:'Share Tech Mono',monospace;font-size:.58rem;letter-spacing:.2em;color:var(--muted);text-transform:uppercase;margin-bottom:12px;}
+.pnj-tags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;}
+.pnj-tag{font-family:'Share Tech Mono',monospace;font-size:.52rem;letter-spacing:.1em;text-transform:uppercase;padding:2px 9px;border:1px solid var(--border);color:var(--muted);}
+.pnj-desc{font-size:.85rem;color:var(--muted);line-height:1.7;font-weight:300;flex:1;margin-bottom:16px;}
+.pnj-divider{height:1px;background:var(--border);margin-bottom:14px;}
+.pnj-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.pnj-stat{text-align:center;padding:8px 4px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);}
+.pnj-stat-val{font-family:'Orbitron',sans-serif;font-size:.9rem;font-weight:700;display:block;line-height:1;}
+.pnj-stat-key{font-family:'Share Tech Mono',monospace;font-size:.46rem;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;display:block;margin-top:3px;}
+.pnj-deco{position:absolute;bottom:0;right:0;width:24px;height:24px;border-top:1px solid var(--border);border-left:1px solid var(--border);pointer-events:none;z-index:2;}
+
+/* ADD PNJ ADMIN NOTE */
+.admin-note{background:rgba(255,214,10,0.04);border:1px solid rgba(255,214,10,0.2);padding:20px 24px;margin-bottom:36px;font-family:'Share Tech Mono',monospace;font-size:.62rem;color:var(--gold);letter-spacing:.1em;line-height:1.8;}
+.admin-note strong{color:#fff;}
+
+/* FOOTER */
+footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:22px 44px;display:flex;align-items:center;justify-content:space-between;margin-top:60px;}
+.fl2{font-family:'Orbitron',sans-serif;font-weight:900;font-size:.8rem;letter-spacing:.28em;color:var(--cyan);opacity:.38;}
+.ft{font-family:'Share Tech Mono',monospace;font-size:.57rem;color:var(--muted);letter-spacing:.13em;}
+.fls{display:flex;gap:14px;}
+.fls a{font-family:'Share Tech Mono',monospace;font-size:.55rem;color:var(--muted);text-decoration:none;letter-spacing:.1em;transition:color .2s;}
+.fls a:hover{color:var(--cyan);}
+.hdot{width:5px;height:5px;border-radius:50%;background:#00ff88;box-shadow:0 0 7px #00ff88;display:inline-block;margin-right:5px;animation:p 2s infinite;}
+@keyframes p{0%,100%{opacity:1}50%{opacity:.3}}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:var(--dark)}::-webkit-scrollbar-thumb{background:var(--border)}::-webkit-scrollbar-thumb:hover{background:var(--cyan)}
+@media(max-width:880px){header{padding:0 16px}nav a span{display:none}.page-wrap,.page-hero{padding:32px 16px}footer{flex-direction:column;gap:10px;text-align:center;padding:20px 16px}.pnj-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <a href="index.html" class="logo">JAHARTA <span class="logo-slash">//</span> RP<span class="logo-sub">UNIVERS JAHARTA · ROLEPLAY OFFICIEL</span></a>
+  <nav>
+    <a href="index.html">⌂ <span>Accueil</span></a>
+    <a href="fiches.html">◈ <span>Fiches RP</span></a>
+    <a href="pnj.html" class="active">◆ <span>PNJ</span></a>
+    <a href="portail.html">⬡ <span>Portail</span></a>
+    <a href="admin.html" class="nav-admin">⚙ Admin</a>
+  </nav>
+</header>
+
+<!-- PAGE HERO -->
+<div class="page-hero">
+  <div class="page-hero-inner">
+    <p class="ph-tag">▸ PERSONNAGES NON-JOUEURS · FIGURES CLÉS DE L'UNIVERS</p>
+    <h1 class="ph-title">PNJ <span>Importants</span></h1>
+    <p class="ph-sub">Les entités, seigneurs et figures mythiques qui gouvernent, menacent ou protègent le monde de Jaharta. Ces personnages sont gérés par les administrateurs.</p>
+    <div class="ph-warn">⚠ Ces fiches sont créées et gérées exclusivement par les admins Jaharta</div>
+  </div>
+</div>
+
+<div class="page-wrap">
+
+  <!-- ADMIN NOTE -->
+  <div class="admin-note">
+    ▸ <strong>Pour les admins :</strong> Vous pouvez ajouter des PNJ directement dans Firebase sous la collection <strong>pnj</strong>, avec les champs : name, epithet, category, photo, desc, tags, stats, dangerLevel.<br>
+    ▸ Les catégories disponibles : <strong>politique · mystique · ennemi · allie · neutre</strong>
+  </div>
+
+  <!-- CATEGORY FILTER -->
+  <div class="cat-filter">
+    <button class="cat-btn active" data-cat="all" onclick="filterCat('all',this)">Tous</button>
+    <button class="cat-btn" data-cat="politique" onclick="filterCat('politique',this)">◈ Politique</button>
+    <button class="cat-btn" data-cat="mystique"  onclick="filterCat('mystique',this)">◆ Mystique</button>
+    <button class="cat-btn" data-cat="ennemi"    onclick="filterCat('ennemi',this)">⚔ Ennemi</button>
+    <button class="cat-btn" data-cat="allie"     onclick="filterCat('allie',this)">◇ Allié</button>
+    <button class="cat-btn" data-cat="neutre"    onclick="filterCat('neutre',this)">◉ Neutre</button>
+  </div>
+
+  <div class="pnj-grid" id="pnj-container">
+    <!-- PNJ EXEMPLES — remplacez par vos vrais PNJ -->
+
+    <div class="pnj-card" data-cat="mystique">
+      <div class="pnj-photo" style="background:linear-gradient(135deg,#110a1e,#04060f)">
+        <div class="pnj-stripe" style="background:linear-gradient(90deg,#b06eff,rgba(176,110,255,0.15))"></div>
+        <div class="pnj-photo-ov" style="background:linear-gradient(180deg,transparent 25%,rgba(8,13,26,0.7) 65%,var(--dark2) 100%)"></div>
+        <div class="pnj-photo-ph" style="color:#b06eff">✦</div>
+        <div class="danger-badge" style="color:#b06eff;border-color:rgba(176,110,255,0.5);background:rgba(176,110,255,0.1)">DANGER : SSS</div>
+        <div class="cat-badge" style="color:#b06eff;border-color:rgba(176,110,255,0.35);background:rgba(176,110,255,0.07)">Mystique</div>
+      </div>
+      <div class="pnj-body">
+        <div class="pnj-title">L'Entité Sans Nom</div>
+        <div class="pnj-epithet">// Le Vide Originel · Avant le Commencement</div>
+        <div class="pnj-tags">
+          <span class="pnj-tag">Immortel</span>
+          <span class="pnj-tag">Omniscient</span>
+          <span class="pnj-tag">Indicible</span>
+        </div>
+        <p class="pnj-desc">Une présence antérieure à Jaharta elle-même. Son existence est débattue par les anciens — certains la vénèrent, d'autres nient sa réalité. Ceux qui l'ont approchée ne reviennent jamais inchangés.</p>
+        <div class="pnj-divider"></div>
+        <div class="pnj-stats">
+          <div class="pnj-stat"><span class="pnj-stat-val" style="color:#b06eff">SSS</span><span class="pnj-stat-key">Puissance</span></div>
+          <div class="pnj-stat"><span class="pnj-stat-val" style="color:#b06eff">∞</span><span class="pnj-stat-key">Âge</span></div>
+          <div class="pnj-stat"><span class="pnj-stat-val" style="color:#b06eff">?</span><span class="pnj-stat-key">Localisation</span></div>
+        </div>
+      </div>
+      <div class="pnj-deco"></div>
+    </div>
+
+    <div class="pnj-card" data-cat="politique">
+      <div class="pnj-photo" style="background:linear-gradient(135deg,#0a0f1e,#04060f)">
+        <div class="pnj-stripe" style="background:linear-gradient(90deg,#60a5fa,rgba(96,165,250,0.15))"></div>
+        <div class="pnj-photo-ov" style="background:linear-gradient(180deg,transparent 25%,rgba(8,13,26,0.7) 65%,var(--dark2) 100%)"></div>
+        <div class="pnj-photo-ph" style="color:#60a5fa">⬡</div>
+        <div class="danger-badge" style="color:#60a5fa;border-color:rgba(96,165,250,0.5);background:rgba(96,165,250,0.1)">DANGER : A</div>
+        <div class="cat-badge" style="color:#60a5fa;border-color:rgba(96,165,250,0.35);background:rgba(96,165,250,0.07)">Politique</div>
+      </div>
+      <div class="pnj-body">
+        <div class="pnj-title">Le Conseil des Sept</div>
+        <div class="pnj-epithet">// Gouvernants Suprêmes · Jaharta Centrale</div>
+        <div class="pnj-tags">
+          <span class="pnj-tag">Gouvernants</span>
+          <span class="pnj-tag">Sept membres</span>
+          <span class="pnj-tag">Impériaux</span>
+        </div>
+        <p class="pnj-desc">L'organe dirigeant de Jaharta Centrale. Composé de sept représentants issus des factions les plus puissantes, le Conseil contrôle les lois, les ressources et les alliances entre races.</p>
+        <div class="pnj-divider"></div>
+        <div class="pnj-stats">
+          <div class="pnj-stat"><span class="pnj-stat-val" style="color:#60a5fa">A</span><span class="pnj-stat-key">Puissance</span></div>
+          <div class="pnj-stat"><span class="pnj-stat-val" style="color:#60a5fa">+400</span><span class="pnj-stat-key">Ans</span></div>
+          <div class="pnj-stat"><span class="pnj-stat-val" style="color:#60a5fa">C.J</span><span class="pnj-stat-key">Zone</span></div>
+        </div>
+      </div>
+      <div class="pnj-deco"></div>
+    </div>
+
+    <div class="pnj-card" data-cat="ennemi">
+      <div class="pnj-photo" style="background:linear-gradient(135deg,#1a0404,#04060f)">
+        <div class="pnj-stripe" style="background:linear-gradient(90deg,#ff3030,rgba(255,48,48,0.15))"></div>
+        <div class="pnj-photo-ov" style="background:linear-gradient(180deg,transparent 25%,rgba(8,13,26,0.7) 65%,var(--dark2) 100%)"></div>
+        <div class="pnj-photo-ph" style="color:#ff3030">⚔</div>
+        <div class="danger-badge" style="color:#ff3030;border-color:rgba(255,48,48,0.5);background:rgba(255,48,48,0.1)">DANGER : SS</div>
+        <div class="cat-badge" style="color:#ff3030;border-color:rgba(255,48,48,0.35);background:rgba(255,48,48,0.07)">Ennemi</div>
+      </div>
+      <div class="pnj-body">
+        <div class="pnj-title">Vérath le Consumé</div>
+        <div class="pnj-epithet">// Seigneur de la Brûlure · Terres Ravagées</div>
+        <div class="pnj-tags">
+          <span class="pnj-tag">Démon ancien</span>
+          <span class="pnj-tag">Conquérant</span>
+          <span class="pnj-tag">Impitoyable</span>
+        </div>
+        <p class="pnj-desc">Ancien général démoniaque qui s'est consumé dans un rituel d'ascension interdit. Sa forme actuelle est mi-chair, mi-flamme. Il souhaite étendre les Terres Ravagées à tout Jaharta.</p>
+        <div class="pnj-divider"></div>
+        <div class="pnj-stats">
+          <div class="pnj-stat"><span class="pnj-stat-val" style="color:#ff3030">SS</span><span class="pnj-stat-key">Puissance</span></div>
+          <div class="pnj-stat"><span class="pnj-stat-val" style="color:#ff3030">~800</span><span class="pnj-stat-key">Ans</span></div>
+          <div class="pnj-stat"><span class="pnj-stat-val" style="color:#ff3030">T.R</span><span class="pnj-stat-key">Zone</span></div>
+        </div>
+      </div>
+      <div class="pnj-deco"></div>
+    </div>
+
+    <div class="pnj-card" data-cat="allie">
+      <div class="pnj-photo" style="background:linear-gradient(135deg,#041a0e,#04060f)">
+        <div class="pnj-stripe" style="background:linear-gradient(90deg,#34d399,rgba(52,211,153,0.15))"></div>
+        <div class="pnj-photo-ov" style="background:linear-gradient(180deg,transparent 25%,rgba(8,13,26,0.7) 65%,var(--dark2) 100%)"></div>
+        <div class="pnj-photo-ph" style="color:#34d399">◇</div>
+        <div class="danger-badge" style="color:#34d399;border-color:rgba(52,211,153,0.5);background:rgba(52,211,153,0.1)">RANG : S</div>
+        <div class="cat-badge" style="color:#34d399;border-color:rgba(52,211,153,0.35);background:rgba(52,211,153,0.07)">Allié</div>
+      </div>
+      <div class="pnj-body">
+        <div class="pnj-title">Gardienne Eryn</div>
+        <div class="pnj-epithet">// Protectrice des Lisières · Forêt Vivante</div>
+        <div class="pnj-tags">
+          <span class="pnj-tag">Zooid mythique</span>
+          <span class="pnj-tag">Gardienne</span>
+          <span class="pnj-tag">Neutre-Bienveillante</span>
+        </div>
+        <p class="pnj-desc">Ancienne Zooid mythique dont la forme change selon les saisons. Elle protège les voyageurs qui respectent les lois de la Forêt Vivante et peut offrir refuge aux fugitifs méritants.</p>
+        <div class="pnj-divider"></div>
+        <div class="pnj-stats">
+          <div class="pnj-stat"><span class="pnj-stat-val" style="color:#34d399">S</span><span class="pnj-stat-key">Puissance</span></div>
+          <div class="pnj-stat"><span class="pnj-stat-val" style="color:#34d399">+200</span><span class="pnj-stat-key">Ans</span></div>
+          <div class="pnj-stat"><span class="pnj-stat-val" style="color:#34d399">F.V</span><span class="pnj-stat-key">Zone</span></div>
+        </div>
+      </div>
+      <div class="pnj-deco"></div>
+    </div>
+
+    <div class="pnj-card" data-cat="neutre">
+      <div class="pnj-photo" style="background:linear-gradient(135deg,#1a1600,#04060f)">
+        <div class="pnj-stripe" style="background:linear-gradient(90deg,#fbbf24,rgba(251,191,36,0.15))"></div>
+        <div class="pnj-photo-ov" style="background:linear-gradient(180deg,transparent 25%,rgba(8,13,26,0.7) 65%,var(--dark2) 100%)"></div>
+        <div class="pnj-photo-ph" style="color:#fbbf24">◉</div>
+        <div class="danger-badge" style="color:#fbbf24;border-color:rgba(251,191,36,0.5);background:rgba(251,191,36,0.1)">RANG : B</div>
+        <div class="cat-badge" style="color:#fbbf24;border-color:rgba(251,191,36,0.35);background:rgba(251,191,36,0.07)">Neutre</div>
+      </div>
+      <div class="pnj-body">
+        <div class="pnj-title">Marchand Ozrik</div>
+        <div class="pnj-epithet">// Le Passeur · Carrefour des Mondes</div>
+        <div class="pnj-tags">
+          <span class="pnj-tag">Humanoïde</span>
+          <span class="pnj-tag">Informateur</span>
+          <span class="pnj-tag">Commerçant</span>
+        </div>
+        <p class="pnj-desc">Intermédiaire légendaire qui connaît tous les chemins de Jaharta. Sa neutralité absolue est son bien le plus précieux — il vend ses services aux deux camps sans jamais prendre parti.</p>
+        <div class="pnj-divider"></div>
+        <div class="pnj-stats">
+          <div class="pnj-stat"><span class="pnj-stat-val" style="color:#fbbf24">B</span><span class="pnj-stat-key">Puissance</span></div>
+          <div class="pnj-stat"><span class="pnj-stat-val" style="color:#fbbf24">~60</span><span class="pnj-stat-key">Ans</span></div>
+          <div class="pnj-stat"><span class="pnj-stat-val" style="color:#fbbf24">?</span><span class="pnj-stat-key">Zone</span></div>
+        </div>
+      </div>
+      <div class="pnj-deco"></div>
+    </div>
+
+    <div class="pnj-card" data-cat="politique">
+      <div class="pnj-photo" style="background:linear-gradient(135deg,#0a0d1a,#04060f)">
+        <div class="pnj-stripe" style="background:linear-gradient(90deg,#60a5fa,rgba(96,165,250,0.15))"></div>
+        <div class="pnj-photo-ov" style="background:linear-gradient(180deg,transparent 25%,rgba(8,13,26,0.7) 65%,var(--dark2) 100%)"></div>
+        <div class="pnj-photo-ph" style="color:#60a5fa">★</div>
+        <div class="danger-badge" style="color:#60a5fa;border-color:rgba(96,165,250,0.5);background:rgba(96,165,250,0.1)">DANGER : S</div>
+        <div class="cat-badge" style="color:#60a5fa;border-color:rgba(96,165,250,0.35);background:rgba(96,165,250,0.07)">Politique</div>
+      </div>
+      <div class="pnj-body">
+        <div class="pnj-title">Commandante Syla Voss</div>
+        <div class="pnj-epithet">// Fer de Lance · Milice de Jaharta</div>
+        <div class="pnj-tags">
+          <span class="pnj-tag">Humanoïde</span>
+          <span class="pnj-tag">Militaire</span>
+          <span class="pnj-tag">Intransigeante</span>
+        </div>
+        <p class="pnj-desc">Cheffe des forces armées de Jaharta Centrale, Syla Voss est réputée pour son sens tactique impitoyable. Elle applique les lois du Conseil avec une rigueur absolue, sans exception.</p>
+        <div class="pnj-divider"></div>
+        <div class="pnj-stats">
+          <div class="pnj-stat"><span class="pnj-stat-val" style="color:#60a5fa">S</span><span class="pnj-stat-key">Puissance</span></div>
+          <div class="pnj-stat"><span class="pnj-stat-val" style="color:#60a5fa">42</span><span class="pnj-stat-key">Ans</span></div>
+          <div class="pnj-stat"><span class="pnj-stat-val" style="color:#60a5fa">C.J</span><span class="pnj-stat-key">Zone</span></div>
+        </div>
+      </div>
+      <div class="pnj-deco"></div>
+    </div>
+
+    <div class="no-results" id="no-results" style="display:none;grid-column:1/-1;text-align:center;padding:60px;font-family:'Share Tech Mono',monospace;color:var(--muted);letter-spacing:.2em;font-size:.72rem;">◈ Aucun PNJ dans cette catégorie.</div>
+  </div>
+</div>
+
+<footer>
+  <div class="fl2">JAHARTA // RP</div>
+  <div class="ft"><span class="hdot"></span>PNJ GÉRÉS PAR LES ADMINS · v4.0.0</div>
+  <div class="fls">
+    <a href="index.html">Accueil</a><a href="fiches.html">Fiches RP</a>
+    <a href="portail.html">Portail</a><a href="admin.html">Admin</a>
+    <a href="https://discord.gg/jBMnmeR944" target="_blank">Discord ↗</a>
+  </div>
+</footer>
+
+<script>
+function filterCat(cat,btn){
+  document.querySelectorAll('.cat-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');
+  let v=0;document.querySelectorAll('.pnj-card[data-cat]').forEach(c=>{const show=cat==='all'||c.dataset.cat===cat;c.style.display=show?'':'none';if(show)v++;});
+  document.getElementById('no-results').style.display=v===0?'block':'none';
+}
+</script>
+</body>
+</html>
