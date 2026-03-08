@@ -5,143 +5,169 @@
 <title>JAHARTA // PNJ Importants</title>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=Share+Tech+Mono&family=Rajdhani:wght@300;400;500;600&display=swap" rel="stylesheet">
 
-<!-- FIREBASE -->
 <script type="module">
 import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import{getFirestore,collection,addDoc,getDocs,deleteDoc,doc,query,orderBy,serverTimestamp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import{getFirestore,collection,addDoc,getDocs,deleteDoc,doc,query,orderBy,serverTimestamp,onSnapshot,setDoc}
+  from"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import{getStorage,ref,uploadBytes,getDownloadURL}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 import{getAuth,onAuthStateChanged}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
-const firebaseConfig={apiKey:"AIzaSyAru7qZX8Gu_b8Y3oNDV-a5PmkrrkRjkcs",authDomain:"jaharta-rp.firebaseapp.com",projectId:"jaharta-rp",storageBucket:"jaharta-rp.firebasestorage.app",messagingSenderId:"217075417489",appId:"1:217075417489:web:4d1e2df422a5cd42411a30",measurementId:"G-15JSSBZWCH"};
-const app=initializeApp(firebaseConfig);
+const cfg={apiKey:"AIzaSyAru7qZX8Gu_b8Y3oNDV-a5PmkrrkRjkcs",authDomain:"jaharta-rp.firebaseapp.com",projectId:"jaharta-rp",storageBucket:"jaharta-rp.firebasestorage.app",messagingSenderId:"217075417489",appId:"1:217075417489:web:4d1e2df422a5cd42411a30"};
+const app=initializeApp(cfg);
 const db=getFirestore(app);
 const storage=getStorage(app);
 const auth=getAuth(app);
 
-/* ── Auth state ── */
-onAuthStateChanged(auth, user => {
-  window._isAdmin = !!user;
-  document.querySelectorAll('.admin-only').forEach(el => {
-    el.style.display = user ? '' : 'none';
-  });
-  if (user) loadPNJ();
-  else loadPNJ();
+/* ── globals ── */
+window._isAdmin=false;
+window._filters=[];   // [{id, label, color}]
+window._activeFilter='all';
+
+/* ── Auth ── */
+onAuthStateChanged(auth,user=>{
+  window._isAdmin=!!user;
+  document.querySelectorAll('.admin-only').forEach(el=>el.style.display=user?'flex':'none');
+  document.querySelectorAll('.admin-only-block').forEach(el=>el.style.display=user?'block':'none');
 });
 
-/* ── Load PNJ ── */
-async function loadPNJ() {
-  try {
-    const q = query(collection(db,"pnj"), orderBy("createdAt","desc"));
-    const snap = await getDocs(q);
-    const container = document.getElementById('pnj-container');
-    // Clear existing firebase cards (keep static examples if firebase empty)
-    const existing = container.querySelectorAll('.pnj-card[data-firebase]');
-    existing.forEach(c=>c.remove());
-    snap.forEach(d => {
-      const pnj = {id:d.id,...d.data()};
-      container.insertBefore(buildPNJCard(pnj), container.firstChild);
-    });
-    updateFilterCounts();
-  } catch(e) { console.warn("Firebase PNJ load:", e.message); updateFilterCounts(); }
+/* ── Load filters from Firestore ── */
+async function loadFilters(){
+  try{
+    const snap=await getDocs(query(collection(db,'pnj_filters'),orderBy('createdAt','asc')));
+    window._filters=[];
+    snap.forEach(d=>window._filters.push({id:d.id,...d.data()}));
+  }catch(e){window._filters=[];}
+  renderFilterBar();
 }
 
-/* ── Add PNJ ── */
-window.submitPNJ = async function() {
-  if (!window._isAdmin) { showToast('⚠ Connexion admin requise', 'error'); return; }
-  const nom      = document.getElementById('pnj-nom').value.trim();
-  const prenom   = document.getElementById('pnj-prenom').value.trim();
-  const age      = document.getElementById('pnj-age').value.trim();
-  const race     = document.getElementById('pnj-race').value.trim();
-  const role     = document.getElementById('pnj-role').value.trim();
-  const titre    = document.getElementById('pnj-titre').value.trim();
-  const marital  = document.getElementById('pnj-marital').value.trim();
-  const taille   = document.getElementById('pnj-taille').value.trim();
-  const category = document.getElementById('pnj-category').value;
-  const danger   = document.getElementById('pnj-danger').value;
-  const photoUrl = document.getElementById('pnj-photo-url').value.trim();
-  const desc     = document.getElementById('pnj-desc').value.trim();
-  const motSocial= document.getElementById('pnj-mot-social').value.trim();
-  const motEco   = document.getElementById('pnj-mot-eco').value.trim();
-  const motMil   = document.getElementById('pnj-mot-mil').value.trim();
-
-  if (!nom || !prenom || !category || !desc) {
-    showToast('Remplissez au moins : Nom, Prénom, Catégorie et Description.', 'error'); return;
+/* ── Render filter bar ── */
+window.renderFilterBar=function(){
+  const bar=document.getElementById('filter-bar');
+  // Keep "Tous" button
+  bar.innerHTML=`<button class="cat-btn${window._activeFilter==='all'?' active':''}" onclick="applyFilter('all',this)">Tous</button>`;
+  window._filters.forEach(f=>{
+    const hex=f.color||'#00f5ff';
+    const btn=document.createElement('button');
+    btn.className='cat-btn'+(window._activeFilter===f.id?' active':'');
+    btn.style.cssText=`color:${hex};border-color:${hex}44;`;
+    btn.innerHTML=`<span class="fdot" style="background:${hex};box-shadow:0 0 5px ${hex}"></span>${f.label}`;
+    btn.onclick=()=>applyFilter(f.id,btn);
+    // admin delete x
+    if(window._isAdmin){
+      const x=document.createElement('span');
+      x.className='filter-del';x.textContent='✕';
+      x.onclick=e=>{e.stopPropagation();deleteFilter(f.id);};
+      btn.appendChild(x);
+    }
+    bar.appendChild(btn);
+  });
+  // admin "+" add filter btn
+  if(window._isAdmin){
+    const ab=document.createElement('button');
+    ab.className='cat-btn add-filter-btn';
+    ab.innerHTML='+ Filtre';
+    ab.onclick=()=>openFilterModal();
+    bar.appendChild(ab);
   }
-  const btn = document.getElementById('pnj-submit-btn');
-  btn.disabled=true; btn.textContent='⟳ Création...';
+};
 
-  let finalPhoto = photoUrl;
-  const photoFile = document.getElementById('pnj-file').files[0];
-  if (photoFile) {
-    try {
-      const r2=ref(storage,`pnj/${Date.now()}_${photoFile.name}`);
-      const snap2=await uploadBytes(r2,photoFile);
-      finalPhoto=await getDownloadURL(snap2.ref);
-    } catch(e) { console.warn("Upload PNJ photo:", e.message); }
-  }
+/* ── Apply filter ── */
+window.applyFilter=function(id,btn){
+  window._activeFilter=id;
+  document.querySelectorAll('.cat-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  let v=0;
+  document.querySelectorAll('.pnj-card[data-cat]').forEach(c=>{
+    const show=id==='all'||c.dataset.cat===id;
+    c.style.display=show?'':'none';
+    if(show)v++;
+  });
+  document.getElementById('no-results').style.display=v===0?'block':'none';
+};
 
-  try {
-    await addDoc(collection(db,"pnj"), {
-      nom, prenom, age, race, role, titre, marital, taille,
-      category, danger, photoUrl:finalPhoto, desc,
-      motivations:{ social:motSocial, economique:motEco, militaire:motMil },
-      createdAt: serverTimestamp()
+/* ── Add filter ── */
+window.saveFilter=async function(){
+  const label=document.getElementById('new-filter-label').value.trim();
+  const color=document.getElementById('new-filter-color').value;
+  if(!label){showToast('Donnez un nom au filtre','error');return;}
+  const btn=document.getElementById('filter-save-btn');
+  btn.disabled=true;btn.textContent='⟳';
+  try{
+    await addDoc(collection(db,'pnj_filters'),{label,color,createdAt:serverTimestamp()});
+    showToast('✓ Filtre créé !','success');
+    closeFilterModal();
+    await loadFilters();
+  }catch(e){showToast('Erreur: '+e.message,'error');}
+  btn.disabled=false;btn.textContent='Créer';
+};
+
+/* ── Delete filter ── */
+window.deleteFilter=async function(id){
+  if(!confirm('Supprimer ce filtre ?'))return;
+  try{
+    await deleteDoc(doc(db,'pnj_filters',id));
+    window._filters=window._filters.filter(f=>f.id!==id);
+    if(window._activeFilter===id)window._activeFilter='all';
+    renderFilterBar();
+    showToast('Filtre supprimé','error');
+  }catch(e){showToast('Erreur: '+e.message,'error');}
+};
+
+/* ── Load PNJ ── */
+function loadPNJ(){
+  const q=query(collection(db,'pnj'),orderBy('createdAt','desc'));
+  onSnapshot(q,snap=>{
+    const container=document.getElementById('pnj-container');
+    container.querySelectorAll('.pnj-card').forEach(c=>c.remove());
+    const empty=document.getElementById('empty-state');
+    if(empty)empty.style.display='none';
+    let count=0;
+    snap.forEach(d=>{
+      const card=buildPNJCard({id:d.id,...d.data()});
+      container.insertBefore(card,container.firstChild);
+      count++;
     });
-    showToast('✓ PNJ créé avec succès !', 'success');
-    closePNJModal();
-    loadPNJ();
-  } catch(e) { showToast('⚠ Erreur : '+e.message, 'error'); }
+    if(count===0&&empty)empty.style.display='block';
+    // re-apply active filter
+    if(window._activeFilter!=='all'){
+      document.querySelectorAll('.pnj-card[data-cat]').forEach(c=>{
+        c.style.display=c.dataset.cat===window._activeFilter?'':'none';
+      });
+    }
+  },err=>console.warn('PNJ load:',err.message));
+}
 
-  btn.disabled=false; btn.textContent='▸ Créer le PNJ';
-};
+/* ── Build card ── */
+function buildPNJCard(p){
+  // Find color from custom filters, fallback to default
+  const filterObj=window._filters.find(f=>f.id===p.category);
+  const c=filterObj?filterObj.color:'#b06eff';
+  const cl=filterObj?filterObj.label:(p.category||'?');
+  const hasMotivations=p.motivations&&(p.motivations.social||p.motivations.economique||p.motivations.militaire);
 
-/* ── Delete PNJ ── */
-window.deletePNJ = async function(id) {
-  if (!window._isAdmin) return;
-  if (!confirm('Supprimer définitivement ce PNJ ?')) return;
-  try {
-    await deleteDoc(doc(db,"pnj",id));
-    const card = document.querySelector(`.pnj-card[data-id="${id}"]`);
-    if (card) card.remove();
-    showToast('PNJ supprimé.', 'error');
-    updateFilterCounts();
-  } catch(e) { showToast('Erreur suppression: '+e.message,'error'); }
-};
+  const card=document.createElement('div');
+  card.className='pnj-card';
+  card.dataset.cat=p.category||'';
+  card.dataset.id=p.id||'';
 
-/* ── Build PNJ Card ── */
-function buildPNJCard(p) {
-  const catColors = {politique:'#60a5fa',mystique:'#b06eff',ennemi:'#ff3030',allie:'#34d399',neutre:'#fbbf24'};
-  const catLabels = {politique:'Politique',mystique:'Mystique',ennemi:'Ennemi',allie:'Allié',neutre:'Neutre'};
-  const c = catColors[p.category] || '#00f5ff';
-  const cl = catLabels[p.category] || p.category;
-  const hasMotivations = p.motivations && (p.motivations.social || p.motivations.economique || p.motivations.militaire);
+  const photoHTML=p.photoUrl
+    ?`<img src="${p.photoUrl}" alt="${p.prenom||''}" onerror="this.remove()">`
+    :`<div class="pnj-photo-ph" style="color:${c}">${(p.prenom||'?')[0]}</div>`;
 
-  const card = document.createElement('div');
-  card.className = 'pnj-card';
-  card.dataset.cat = p.category;
-  card.dataset.firebase = '1';
-  card.dataset.id = p.id || '';
-
-  const photoHTML = p.photoUrl
-    ? `<img src="${p.photoUrl}" alt="${p.prenom}" onerror="this.remove()">`
-    : `<div class="pnj-photo-ph" style="color:${c}">${(p.prenom||'?')[0]}</div>`;
-
-  const motivHTML = hasMotivations ? `
+  const motivHTML=hasMotivations?`
     <div class="pnj-divider"></div>
     <div class="pnj-mot-title">Motivations</div>
     ${p.motivations.social?`<div class="pnj-mot-item"><span class="pnj-mot-lbl" style="color:#60a5fa">Plan Social :</span> <span>${p.motivations.social}</span></div>`:''}
     ${p.motivations.economique?`<div class="pnj-mot-item"><span class="pnj-mot-lbl" style="color:#ffd60a">Plan Économique :</span> <span>${p.motivations.economique}</span></div>`:''}
     ${p.motivations.militaire?`<div class="pnj-mot-item"><span class="pnj-mot-lbl" style="color:#ff3030">Plan Militaire :</span> <span>${p.motivations.militaire}</span></div>`:''}
-  ` : '';
+  `:'';
 
-  const adminBtns = p.id ? `
-    <button class="pnj-del-btn admin-only" onclick="deletePNJ('${p.id}')" style="display:${window._isAdmin?'flex':'none'}">✕ Supprimer</button>
-  ` : '';
+  const adminDel=p.id?`<button class="pnj-del-btn admin-only" onclick="deletePNJ('${p.id}')" style="display:${window._isAdmin?'flex':'none'}">✕ Supprimer</button>`:'';
 
-  card.innerHTML = `
-    <div class="pnj-photo" style="background:linear-gradient(135deg,${c}12,#04060f)">
+  card.innerHTML=`
+    <div class="pnj-photo" style="background:linear-gradient(135deg,${c}14,#04060f)">
       <div class="pnj-stripe" style="background:linear-gradient(90deg,${c},${c}20)"></div>
-      <div class="pnj-photo-ov" style="background:linear-gradient(180deg,transparent 25%,rgba(8,13,26,0.7) 65%,var(--dark2) 100%)"></div>
+      <div class="pnj-photo-ov"></div>
       ${photoHTML}
       <div class="danger-badge" style="color:${c};border-color:${c}80;background:${c}18">${p.danger||'?'}</div>
       <div class="cat-badge" style="color:${c};border-color:${c}55;background:${c}10">${cl}</div>
@@ -158,30 +184,88 @@ function buildPNJCard(p) {
       </div>
       <p class="pnj-desc">${p.desc||''}</p>
       ${motivHTML}
-      ${adminBtns}
+      ${adminDel}
     </div>
     <div class="pnj-deco"></div>
   `;
   return card;
 }
 
-function updateFilterCounts() {
-  const cats = ['politique','mystique','ennemi','allie','neutre'];
-  cats.forEach(c => {
-    const n = document.querySelectorAll(`.pnj-card[data-cat="${c}"]`).length;
-    const el = document.getElementById('cnt-'+c);
-    if(el) el.textContent = n;
+/* ── Submit PNJ ── */
+window.submitPNJ=async function(){
+  if(!window._isAdmin){showToast('⚠ Connexion admin requise','error');return;}
+  const nom=document.getElementById('pnj-nom').value.trim();
+  const prenom=document.getElementById('pnj-prenom').value.trim();
+  const age=document.getElementById('pnj-age').value.trim();
+  const race=document.getElementById('pnj-race').value.trim();
+  const role=document.getElementById('pnj-role').value.trim();
+  const titre=document.getElementById('pnj-titre').value.trim();
+  const marital=document.getElementById('pnj-marital').value.trim();
+  const taille=document.getElementById('pnj-taille').value.trim();
+  const category=document.getElementById('pnj-category').value;
+  const danger=document.getElementById('pnj-danger').value;
+  const photoUrl=document.getElementById('pnj-photo-url').value.trim();
+  const desc=document.getElementById('pnj-desc').value.trim();
+  const motSocial=document.getElementById('pnj-mot-social').value.trim();
+  const motEco=document.getElementById('pnj-mot-eco').value.trim();
+  const motMil=document.getElementById('pnj-mot-mil').value.trim();
+  if(!nom||!prenom||!desc){showToast('Remplissez Nom, Prénom et Description','error');return;}
+  const btn=document.getElementById('pnj-submit-btn');
+  btn.disabled=true;btn.textContent='⟳ Création...';
+  let finalPhoto=photoUrl;
+  const photoFile=document.getElementById('pnj-file').files[0];
+  if(photoFile){
+    try{const r2=ref(storage,`pnj/${Date.now()}_${photoFile.name}`);const s2=await uploadBytes(r2,photoFile);finalPhoto=await getDownloadURL(s2.ref);}
+    catch(e){console.warn('Photo upload:',e.message);}
+  }
+  try{
+    await addDoc(collection(db,'pnj'),{nom,prenom,age,race,role,titre,marital,taille,category,danger,photoUrl:finalPhoto,desc,motivations:{social:motSocial,economique:motEco,militaire:motMil},createdAt:serverTimestamp()});
+    showToast('✓ PNJ créé !','success');
+    closePNJModal();
+    ['pnj-nom','pnj-prenom','pnj-age','pnj-race','pnj-role','pnj-titre','pnj-marital','pnj-taille','pnj-photo-url','pnj-desc','pnj-mot-social','pnj-mot-eco','pnj-mot-mil'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+    document.getElementById('pnj-category').value='';
+    clearPnjPrev();
+  }catch(e){showToast('⚠ '+e.message,'error');}
+  btn.disabled=false;btn.textContent='◆ Créer le PNJ';
+};
+
+/* ── Delete PNJ ── */
+window.deletePNJ=async function(id){
+  if(!window._isAdmin)return;
+  if(!confirm('Supprimer définitivement ce PNJ ?'))return;
+  try{
+    await deleteDoc(doc(db,'pnj',id));
+    document.querySelector(`.pnj-card[data-id="${id}"]`)?.remove();
+    showToast('PNJ supprimé.','error');
+  }catch(e){showToast('Erreur: '+e.message,'error');}
+};
+
+/* ── Init ── */
+(async()=>{
+  await loadFilters();
+  // Populate category dropdown with custom filters
+  const sel=document.getElementById('pnj-category');
+  window._filters.forEach(f=>{
+    const opt=document.createElement('option');opt.value=f.id;opt.textContent=f.label;sel.appendChild(opt);
   });
-  const total = document.querySelectorAll('.pnj-card[data-cat]').length;
-  const elAll = document.getElementById('cnt-all');
-  if(elAll) elAll.textContent = total;
-}
+  loadPNJ();
+})();
+
+/* ── Expose for filter modal ── */
+window._refreshCategorySelect=function(){
+  const sel=document.getElementById('pnj-category');
+  // clear non-placeholder options
+  while(sel.options.length>1)sel.remove(1);
+  window._filters.forEach(f=>{
+    const opt=document.createElement('option');opt.value=f.id;opt.textContent=f.label;sel.appendChild(opt);
+  });
+};
 
 function showToast(msg,type='success'){const t=document.getElementById('toast');t.textContent=msg;t.className=`toast ${type} show`;setTimeout(()=>{t.className='toast';},4000);}
 </script>
 
 <style>
-:root{--cyan:#00f5ff;--magenta:#ff006e;--gold:#ffd60a;--dark:#04060f;--dark2:#080d1a;--panel:rgba(0,245,255,0.035);--border:rgba(0,245,255,0.16);--text:#c8e0f0;--muted:#5a7a90;}
+:root{--cyan:#00f5ff;--magenta:#ff006e;--gold:#ffd60a;--dark:#04060f;--dark2:#080d1a;--border:rgba(0,245,255,0.16);--text:#c8e0f0;--muted:#5a7a90;}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}html{scroll-behavior:smooth;}
 body{background:var(--dark);color:var(--text);font-family:'Rajdhani',sans-serif;font-size:16px;min-height:100vh;overflow-x:hidden;cursor:crosshair;}
 body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.055) 2px,rgba(0,0,0,0.055) 4px);pointer-events:none;z-index:9999;}
@@ -197,55 +281,49 @@ nav a.active{color:var(--magenta);border-color:rgba(255,0,110,0.22);background:r
 nav a.active::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:1px;background:var(--magenta);box-shadow:0 0 8px var(--magenta);}
 .nav-admin{color:var(--gold)!important;border-color:rgba(255,214,10,0.22)!important;font-family:'Orbitron',sans-serif!important;font-weight:700!important;font-size:0.58rem!important;letter-spacing:0.18em!important;margin-left:6px;}
 .nav-admin:hover{border-color:var(--gold)!important;background:rgba(255,214,10,0.05)!important;}
-.add-pnj-btn{font-family:'Orbitron',sans-serif;font-weight:700;font-size:0.58rem;letter-spacing:0.18em;color:var(--dark)!important;background:var(--magenta);padding:8px 16px;clip-path:polygon(8px 0%,100% 0%,calc(100% - 8px) 100%,0% 100%);border:none!important;margin-left:8px;cursor:pointer;transition:background .2s,box-shadow .2s;display:none;}
-.add-pnj-btn:hover{background:#fff!important;box-shadow:0 0 18px var(--magenta);}
-.admin-only{display:none;}
+
+/* ADMIN ONLY */
+.admin-only{display:none!important;}
+.admin-only-block{display:none;}
 
 /* PAGE HERO */
 .page-hero{position:relative;z-index:1;padding:52px 44px 44px;border-bottom:1px solid rgba(255,0,110,0.15);background:linear-gradient(180deg,rgba(255,0,110,0.04) 0%,transparent 100%);overflow:hidden;}
 .page-hero::before{content:'';position:absolute;top:-60px;left:50%;transform:translateX(-50%);width:700px;height:400px;background:radial-gradient(ellipse,rgba(255,0,110,0.07) 0%,transparent 65%);pointer-events:none;}
-.page-hero-inner{max-width:1380px;margin:0 auto;position:relative;z-index:1;}
+.page-hero-inner{max-width:1380px;margin:0 auto;position:relative;z-index:1;display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap;}
+.ph-left{}
 .ph-tag{font-family:'Share Tech Mono',monospace;font-size:0.62rem;letter-spacing:0.4em;color:var(--magenta);text-shadow:0 0 10px var(--magenta);margin-bottom:10px;}
 .ph-title{font-family:'Orbitron',sans-serif;font-weight:900;font-size:clamp(2rem,5vw,3.4rem);color:#fff;letter-spacing:0.06em;line-height:1;}
 .ph-title span{color:var(--magenta);text-shadow:0 0 22px var(--magenta);}
-.ph-sub{font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:var(--muted);letter-spacing:0.15em;margin-top:10px;max-width:600px;line-height:1.7;}
+.ph-sub{font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:var(--muted);letter-spacing:0.15em;margin-top:10px;line-height:1.7;}
+
+/* BIG ADD BUTTON */
+.big-add-btn{font-family:'Orbitron',sans-serif;font-weight:800;font-size:.72rem;letter-spacing:.22em;text-transform:uppercase;color:var(--dark);background:var(--magenta);border:none;padding:16px 28px;clip-path:polygon(12px 0%,100% 0%,calc(100% - 12px) 100%,0% 100%);cursor:pointer;transition:background .2s,box-shadow .2s;display:none!important;align-items:center;gap:10px;white-space:nowrap;flex-shrink:0;}
+.big-add-btn::before{content:'◆';margin-right:4px;font-size:.7rem;}
+.big-add-btn:hover{background:#fff;box-shadow:0 0 30px var(--magenta),0 0 60px rgba(255,0,110,0.25);}
 
 /* PAGE WRAP */
-.page-wrap{position:relative;z-index:1;padding:52px 44px;max-width:1380px;margin:0 auto;}
+.page-wrap{position:relative;z-index:1;padding:48px 44px;max-width:1380px;margin:0 auto;}
 
-/* CATEGORY FILTER */
-.cat-filter{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:40px;padding-bottom:18px;border-bottom:1px solid var(--border);align-items:center;}
-.cat-btn{font-family:'Share Tech Mono',monospace;font-size:0.64rem;letter-spacing:0.13em;text-transform:uppercase;background:transparent;border:1px solid;padding:7px 14px;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.22s;}
-.cat-btn.active,.cat-btn:hover{background:rgba(255,255,255,0.035);}
-.cat-btn[data-cat="all"]      {color:var(--text);border-color:rgba(200,224,240,0.22);}
-.cat-btn[data-cat="all"].active{background:rgba(255,255,255,0.04);}
-.cat-btn[data-cat="politique"] {color:#60a5fa;border-color:rgba(96,165,250,0.25);}
-.cat-btn[data-cat="politique"].active,.cat-btn[data-cat="politique"]:hover{background:rgba(96,165,250,0.05);}
-.cat-btn[data-cat="mystique"]  {color:#b06eff;border-color:rgba(176,110,255,0.25);}
-.cat-btn[data-cat="mystique"].active,.cat-btn[data-cat="mystique"]:hover{background:rgba(176,110,255,0.05);}
-.cat-btn[data-cat="ennemi"]    {color:#ff3030;border-color:rgba(255,48,48,0.25);}
-.cat-btn[data-cat="ennemi"].active,.cat-btn[data-cat="ennemi"]:hover{background:rgba(255,48,48,0.05);}
-.cat-btn[data-cat="allie"]     {color:#34d399;border-color:rgba(52,211,153,0.25);}
-.cat-btn[data-cat="allie"].active,.cat-btn[data-cat="allie"]:hover{background:rgba(52,211,153,0.05);}
-.cat-btn[data-cat="neutre"]    {color:#fbbf24;border-color:rgba(251,191,36,0.25);}
-.cat-btn[data-cat="neutre"].active,.cat-btn[data-cat="neutre"]:hover{background:rgba(251,191,36,0.05);}
-.cat-cnt{font-family:'Orbitron',sans-serif;font-size:0.5rem;font-weight:700;background:rgba(255,255,255,0.07);padding:2px 6px;border-radius:2px;min-width:18px;text-align:center;}
+/* FILTER BAR */
+.filter-section{margin-bottom:36px;padding-bottom:18px;border-bottom:1px solid var(--border);}
+.filter-bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+.cat-btn{font-family:'Share Tech Mono',monospace;font-size:.64rem;letter-spacing:.13em;text-transform:uppercase;background:transparent;border:1px solid rgba(200,224,240,0.22);color:var(--text);padding:7px 14px;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .2s;position:relative;}
+.cat-btn:hover{background:rgba(255,255,255,0.035);border-color:rgba(255,255,255,0.18);}
+.cat-btn.active{background:rgba(255,255,255,0.05);border-color:rgba(255,255,255,0.25);}
+.fdot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+.filter-del{margin-left:4px;font-size:.55rem;opacity:.4;transition:opacity .15s,color .15s;line-height:1;}
+.filter-del:hover{opacity:1;color:#ff3030;}
+.add-filter-btn{color:var(--muted)!important;border-color:rgba(90,122,144,0.25)!important;border-style:dashed!important;font-size:.6rem!important;letter-spacing:.18em!important;padding:6px 13px!important;}
+.add-filter-btn:hover{color:var(--cyan)!important;border-color:rgba(0,245,255,0.3)!important;}
 
 /* PNJ GRID */
 .pnj-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:24px;}
-
 .pnj-card{position:relative;background:var(--dark2);border:1px solid var(--border);overflow:hidden;display:flex;flex-direction:column;transition:border-color .3s,box-shadow .3s,transform .28s;clip-path:polygon(24px 0%,100% 0%,100% calc(100% - 24px),calc(100% - 24px) 100%,0% 100%,0% 24px);}
-.pnj-card:hover{transform:translateY(-5px);}
-.pnj-card[data-cat="politique"]:hover{border-color:#60a5fa;box-shadow:0 0 26px rgba(96,165,250,0.14),0 12px 38px rgba(0,0,0,0.5);}
-.pnj-card[data-cat="mystique"]:hover {border-color:#b06eff;box-shadow:0 0 26px rgba(176,110,255,0.14),0 12px 38px rgba(0,0,0,0.5);}
-.pnj-card[data-cat="ennemi"]:hover   {border-color:#ff3030;box-shadow:0 0 26px rgba(255,48,48,0.16),0 12px 38px rgba(0,0,0,0.5);}
-.pnj-card[data-cat="allie"]:hover    {border-color:#34d399;box-shadow:0 0 26px rgba(52,211,153,0.14),0 12px 38px rgba(0,0,0,0.5);}
-.pnj-card[data-cat="neutre"]:hover   {border-color:#fbbf24;box-shadow:0 0 26px rgba(251,191,36,0.14),0 12px 38px rgba(0,0,0,0.5);}
-
+.pnj-card:hover{transform:translateY(-5px);border-color:rgba(255,0,110,0.3);box-shadow:0 0 24px rgba(255,0,110,0.1),0 12px 38px rgba(0,0,0,0.5);}
 .pnj-photo{position:relative;width:100%;height:230px;overflow:hidden;flex-shrink:0;background:#0a0408;}
 .pnj-photo img{width:100%;height:100%;object-fit:cover;object-position:top;filter:saturate(1.05) contrast(1.08);transition:transform .5s,filter .4s;}
 .pnj-card:hover .pnj-photo img{transform:scale(1.06);filter:saturate(1.25) contrast(1.12);}
-.pnj-photo-ov{position:absolute;inset:0;pointer-events:none;}
+.pnj-photo-ov{position:absolute;inset:0;background:linear-gradient(180deg,transparent 25%,rgba(8,13,26,0.7) 65%,var(--dark2) 100%);pointer-events:none;}
 .pnj-photo-ph{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-family:'Orbitron',sans-serif;font-size:3rem;font-weight:900;opacity:0.4;}
 .pnj-stripe{position:absolute;top:0;left:0;right:0;height:3px;z-index:2;}
 .danger-badge{position:absolute;top:12px;left:12px;z-index:3;font-family:'Orbitron',sans-serif;font-weight:800;font-size:.6rem;letter-spacing:.12em;padding:5px 12px;border:1px solid;text-transform:uppercase;}
@@ -264,17 +342,19 @@ nav a.active::after{content:'';position:absolute;bottom:-1px;left:0;right:0;heig
 .pnj-del-btn:hover{color:#ff3030;border-color:rgba(255,48,48,0.35);background:rgba(255,48,48,0.04);}
 .pnj-deco{position:absolute;bottom:0;right:0;width:24px;height:24px;border-top:1px solid var(--border);border-left:1px solid var(--border);pointer-events:none;z-index:2;}
 
-/* ── MODAL PNJ ── */
+/* ── MODAL SHARED ── */
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(4,6,15,0.94);z-index:1000;align-items:flex-start;justify-content:center;backdrop-filter:blur(6px);padding:30px 16px;overflow-y:auto;}
 .modal-overlay.open{display:flex;}
-.modal{background:var(--dark2);border:1px solid rgba(255,0,110,0.3);width:92%;max-width:660px;position:relative;clip-path:polygon(24px 0%,100% 0%,100% calc(100% - 24px),calc(100% - 24px) 100%,0% 100%,0% 24px);animation:mIn .28s ease;margin:auto;}
+.modal{background:var(--dark2);border:1px solid var(--border);width:92%;max-width:660px;position:relative;clip-path:polygon(24px 0%,100% 0%,100% calc(100% - 24px),calc(100% - 24px) 100%,0% 100%,0% 24px);animation:mIn .28s ease;margin:auto;}
+.modal.sm{max-width:420px;}
 @keyframes mIn{from{opacity:0;transform:scale(.96) translateY(12px)}to{opacity:1;transform:none}}
-.mac{height:3px;background:linear-gradient(90deg,var(--magenta),var(--gold));}
+.mac-magenta{height:3px;background:linear-gradient(90deg,var(--magenta),var(--gold));}
+.mac-cyan{height:3px;background:linear-gradient(90deg,var(--cyan),var(--magenta));}
 .mi{padding:28px 30px 32px;}
-.mt{font-family:'Orbitron',sans-serif;font-size:.85rem;font-weight:700;letter-spacing:.25em;color:var(--magenta);text-transform:uppercase;margin-bottom:6px;}
+.mt{font-family:'Orbitron',sans-serif;font-size:.85rem;font-weight:700;letter-spacing:.25em;text-transform:uppercase;margin-bottom:6px;}
+.mt.mag{color:var(--magenta);}
+.mt.cyan{color:var(--cyan);}
 .msub{font-family:'Share Tech Mono',monospace;font-size:.6rem;color:var(--muted);letter-spacing:.1em;margin-bottom:22px;border-left:2px solid rgba(255,0,110,0.4);padding-left:12px;line-height:1.7;}
-
-/* Form sections */
 .form-section{margin-bottom:20px;}
 .form-section-title{font-family:'Orbitron',sans-serif;font-size:.62rem;font-weight:700;letter-spacing:.22em;color:var(--muted);text-transform:uppercase;margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;}
 .form-section-title::before{content:'';display:block;width:3px;height:12px;background:var(--magenta);}
@@ -283,31 +363,32 @@ nav a.active::after{content:'';position:absolute;bottom:-1px;left:0;right:0;heig
 .fg{margin-bottom:12px;}
 .fg:last-child{margin-bottom:0;}
 .fl{display:block;font-family:'Share Tech Mono',monospace;font-size:.56rem;letter-spacing:.2em;color:var(--muted);text-transform:uppercase;margin-bottom:5px;}
-.fl .req{color:var(--magenta);}
-.fi,.fs,.fta{width:100%;background:rgba(255,0,110,0.03);border:1px solid var(--border);color:var(--text);font-family:'Rajdhani',sans-serif;font-size:.9rem;padding:9px 12px;outline:none;transition:border-color .2s,box-shadow .2s;}
-.fi:focus,.fs:focus,.fta:focus{border-color:rgba(255,0,110,0.5);box-shadow:0 0 10px rgba(255,0,110,0.07);}
+.req{color:var(--magenta);}
+.fi,.fs,.fta{width:100%;background:rgba(255,0,110,0.03);border:1px solid var(--border);color:var(--text);font-family:'Rajdhani',sans-serif;font-size:.9rem;padding:9px 12px;outline:none;transition:border-color .2s;}
+.fi:focus,.fs:focus,.fta:focus{border-color:rgba(255,0,110,0.5);}
 .fs option{background:var(--dark2);}
 .fta{resize:vertical;min-height:72px;}
-
-/* Sub-textarea (motivations) */
-.mot-block{background:rgba(0,0,0,0.2);border:1px solid var(--border);padding:14px 16px;margin-bottom:0;}
+.mot-block{background:rgba(0,0,0,0.2);border:1px solid var(--border);padding:14px 16px;}
 .mot-label{font-family:'Share Tech Mono',monospace;font-size:.58rem;letter-spacing:.18em;text-transform:uppercase;margin-bottom:5px;display:block;}
-.mot-label.social{color:#60a5fa;}
-.mot-label.eco{color:#ffd60a;}
-.mot-label.mil{color:#ff3030;}
-
-/* Photo drop */
+.mot-label.social{color:#60a5fa;}.mot-label.eco{color:#ffd60a;}.mot-label.mil{color:#ff3030;}
 .photo-drop{width:100%;height:90px;background:rgba(255,0,110,0.03);border:1px dashed rgba(255,0,110,0.25);display:flex;align-items:center;justify-content:center;position:relative;cursor:pointer;transition:border-color .2s;overflow:hidden;}
 .photo-drop:hover{border-color:var(--magenta);}
 .photo-drop img.prev-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
 .photo-drop input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;}
 .pdtxt{font-family:'Share Tech Mono',monospace;font-size:.56rem;color:var(--muted);letter-spacing:.1em;text-align:center;pointer-events:none;}
-
 .bsub{width:100%;font-family:'Orbitron',sans-serif;font-size:.7rem;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:var(--dark);background:var(--magenta);border:none;padding:13px;cursor:pointer;margin-top:6px;clip-path:polygon(12px 0%,100% 0%,calc(100% - 12px) 100%,0% 100%);transition:background .2s,box-shadow .2s;}
 .bsub:hover{background:#fff;box-shadow:0 0 24px var(--magenta);}
-.bsub:disabled{background:var(--muted);cursor:not-allowed;box-shadow:none;}
-.mclose{position:absolute;top:14px;right:14px;background:transparent;border:1px solid var(--border);color:var(--muted);width:28px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.85rem;transition:color .2s,border-color .2s;}
+.bsub:disabled{background:var(--muted);cursor:not-allowed;}
+.bsub.cyan-btn{background:var(--cyan);color:var(--dark);}
+.bsub.cyan-btn:hover{background:#fff;box-shadow:0 0 24px var(--cyan);}
+.mclose{position:absolute;top:14px;right:14px;background:transparent;border:1px solid var(--border);color:var(--muted);width:28px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.85rem;transition:all .2s;}
 .mclose:hover{color:var(--magenta);border-color:var(--magenta);}
+
+/* Color picker row */
+.color-preview{width:38px;height:38px;border:1px solid var(--border);border-radius:0;flex-shrink:0;overflow:hidden;cursor:pointer;}
+.color-preview input[type=color]{width:160%;height:160%;margin:-30%;border:none;cursor:pointer;background:transparent;}
+.color-row{display:flex;gap:10px;align-items:flex-end;}
+.color-row .fg{flex:1;}
 
 /* TOAST */
 .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--dark2);border:1px solid var(--border);font-family:'Share Tech Mono',monospace;font-size:.67rem;letter-spacing:.12em;color:var(--text);padding:13px 26px;z-index:9000;transition:transform .35s,opacity .35s;opacity:0;clip-path:polygon(10px 0%,100% 0%,calc(100% - 10px) 100%,0% 100%);}
@@ -315,7 +396,6 @@ nav a.active::after{content:'';position:absolute;bottom:-1px;left:0;right:0;heig
 .toast.success{border-color:rgba(0,255,136,0.5);color:#00ff88;}
 .toast.error{border-color:rgba(255,48,48,0.5);color:#ff3030;}
 
-/* FOOTER */
 footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:22px 44px;display:flex;align-items:center;justify-content:space-between;margin-top:60px;}
 .fl2{font-family:'Orbitron',sans-serif;font-weight:900;font-size:.8rem;letter-spacing:.28em;color:var(--cyan);opacity:.38;}
 .ft{font-family:'Share Tech Mono',monospace;font-size:.57rem;color:var(--muted);letter-spacing:.13em;}
@@ -325,7 +405,7 @@ footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:22
 .hdot{width:5px;height:5px;border-radius:50%;background:#00ff88;box-shadow:0 0 7px #00ff88;display:inline-block;margin-right:5px;animation:p 2s infinite;}
 @keyframes p{0%,100%{opacity:1}50%{opacity:.3}}
 ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:var(--dark)}::-webkit-scrollbar-thumb{background:var(--border)}::-webkit-scrollbar-thumb:hover{background:var(--cyan)}
-@media(max-width:880px){header{padding:0 16px}nav a span{display:none}.page-wrap,.page-hero{padding:32px 16px}footer{flex-direction:column;gap:10px;text-align:center;padding:20px 16px}.pnj-grid{grid-template-columns:1fr}.frow{grid-template-columns:1fr}.frow3{grid-template-columns:1fr 1fr}}
+@media(max-width:880px){header{padding:0 16px}nav a span{display:none}.page-wrap,.page-hero{padding:32px 16px}footer{flex-direction:column;gap:10px;text-align:center;padding:20px 16px}.pnj-grid{grid-template-columns:1fr}.frow,.frow3{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -339,47 +419,49 @@ footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:22
     <a href="pnj.html" class="active">◆ <span>PNJ</span></a>
     <a href="portail.html">⬡ <span>Portail</span></a>
     <a href="admin.html" class="nav-admin">⚙ Admin</a>
-    <button class="add-pnj-btn admin-only" onclick="openPNJModal()" id="add-pnj-nav-btn">+ PNJ</button>
   </nav>
 </header>
 
 <!-- PAGE HERO -->
 <div class="page-hero">
   <div class="page-hero-inner">
-    <p class="ph-tag">▸ PERSONNAGES NON-JOUEURS · FIGURES CLÉS DE L'UNIVERS</p>
-    <h1 class="ph-title">PNJ <span>Importants</span></h1>
-    <p class="ph-sub">Les entités, seigneurs et figures mythiques qui gouvernent, menacent ou protègent le monde de Jaharta. Ces personnages sont gérés par les administrateurs.</p>
+    <div class="ph-left">
+      <p class="ph-tag">▸ PERSONNAGES NON-JOUEURS · FIGURES CLÉS DE L'UNIVERS</p>
+      <h1 class="ph-title">PNJ <span>Importants</span></h1>
+      <p class="ph-sub">Les entités, seigneurs et figures mythiques qui façonnent le destin de Jaharta.<br>Personnages gérés par les administrateurs du serveur.</p>
+    </div>
+    <!-- BIG ADD BUTTON — admin only -->
+    <button class="big-add-btn admin-only" onclick="openPNJModal()">Créer un PNJ</button>
   </div>
 </div>
 
 <div class="page-wrap">
 
-  <!-- CATEGORY FILTER -->
-  <div class="cat-filter">
-    <button class="cat-btn active" data-cat="all"       onclick="filterCat('all',this)">Tous <span class="cat-cnt" id="cnt-all">0</span></button>
-    <button class="cat-btn" data-cat="politique"        onclick="filterCat('politique',this)">◈ Politique <span class="cat-cnt" id="cnt-politique">0</span></button>
-    <button class="cat-btn" data-cat="mystique"         onclick="filterCat('mystique',this)">◆ Mystique <span class="cat-cnt" id="cnt-mystique">0</span></button>
-    <button class="cat-btn" data-cat="ennemi"           onclick="filterCat('ennemi',this)">⚔ Ennemi <span class="cat-cnt" id="cnt-ennemi">0</span></button>
-    <button class="cat-btn" data-cat="allie"            onclick="filterCat('allie',this)">◇ Allié <span class="cat-cnt" id="cnt-allie">0</span></button>
-    <button class="cat-btn" data-cat="neutre"           onclick="filterCat('neutre',this)">◉ Neutre <span class="cat-cnt" id="cnt-neutre">0</span></button>
+  <!-- FILTER BAR — dynamic -->
+  <div class="filter-section">
+    <div class="filter-bar" id="filter-bar">
+      <button class="cat-btn active" onclick="applyFilter('all',this)">Tous</button>
+      <!-- filters injected by JS -->
+    </div>
   </div>
 
+  <!-- PNJ GRID -->
   <div class="pnj-grid" id="pnj-container">
-    <div class="no-results" id="no-results" style="display:none;grid-column:1/-1;text-align:center;padding:60px;font-family:'Share Tech Mono',monospace;color:var(--muted);letter-spacing:.2em;font-size:.72rem;">◈ Aucun PNJ dans cette catégorie.</div>
+    <div id="no-results" style="display:none;grid-column:1/-1;text-align:center;padding:60px;font-family:'Share Tech Mono',monospace;color:var(--muted);letter-spacing:.2em;font-size:.72rem;">◈ Aucun PNJ dans cette catégorie.</div>
     <div id="empty-state" style="grid-column:1/-1;text-align:center;padding:70px;font-family:'Share Tech Mono',monospace;color:var(--muted);letter-spacing:.18em;font-size:.7rem;">⟳ Chargement des PNJ...</div>
   </div>
+
 </div>
 
-<!-- MODAL CRÉATION PNJ (admin only) -->
+<!-- ═══════════════ MODAL : CRÉER PNJ ═══════════════ -->
 <div class="modal-overlay" id="pnj-modal">
   <div class="modal">
-    <div class="mac"></div>
+    <div class="mac-magenta"></div>
     <button class="mclose" onclick="closePNJModal()">✕</button>
     <div class="mi">
-      <div class="mt">◆ Créer un PNJ</div>
-      <p class="msub">Réservé aux administrateurs Jaharta. Les PNJ créés ici apparaissent immédiatement sur la page publique.</p>
+      <div class="mt mag">◆ Créer un PNJ</div>
+      <p class="msub">Réservé aux administrateurs Jaharta.<br>Le PNJ apparaît immédiatement sur la page publique.</p>
 
-      <!-- IDENTITÉ -->
       <div class="form-section">
         <div class="form-section-title">Identité</div>
         <div class="frow">
@@ -398,18 +480,12 @@ footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:22
         <div class="fg"><label class="fl">Titre Spécial</label><input type="text" class="fi" id="pnj-titre" placeholder="Ex: Le Consumé · Terres Ravagées"></div>
       </div>
 
-      <!-- CLASSIFICATION -->
       <div class="form-section">
         <div class="form-section-title">Classification</div>
         <div class="frow">
-          <div class="fg"><label class="fl">Catégorie <span class="req">*</span></label>
+          <div class="fg"><label class="fl">Catégorie</label>
             <select class="fs" id="pnj-category">
-              <option value="">— Choisir —</option>
-              <option value="politique">Politique</option>
-              <option value="mystique">Mystique</option>
-              <option value="ennemi">Ennemi</option>
-              <option value="allie">Allié</option>
-              <option value="neutre">Neutre</option>
+              <option value="">— Aucune —</option>
             </select>
           </div>
           <div class="fg"><label class="fl">Niveau de danger</label>
@@ -424,7 +500,6 @@ footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:22
         </div>
       </div>
 
-      <!-- PHOTO -->
       <div class="form-section">
         <div class="form-section-title">Illustration</div>
         <div class="fg">
@@ -437,32 +512,49 @@ footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:22
         <div class="fg"><label class="fl">Ou URL d'image</label><input type="url" class="fi" id="pnj-photo-url" placeholder="https://..." oninput="pnjPrevUrl(this.value)"></div>
       </div>
 
-      <!-- DESCRIPTION -->
       <div class="form-section">
         <div class="form-section-title">Description</div>
         <div class="fg"><label class="fl">Description courte <span class="req">*</span></label><textarea class="fta" id="pnj-desc" placeholder="Résumez ce PNJ en 2-4 phrases..." style="min-height:88px"></textarea></div>
       </div>
 
-      <!-- MOTIVATIONS -->
       <div class="form-section">
         <div class="form-section-title">Motivations</div>
         <div class="mot-block">
-          <div class="fg">
-            <label class="fl mot-label social">Plan Social :</label>
-            <textarea class="fta" id="pnj-mot-social" placeholder="Objectifs sociaux, alliances, influence populaire..." style="min-height:60px"></textarea>
-          </div>
-          <div class="fg">
-            <label class="fl mot-label eco">Plan Économique :</label>
-            <textarea class="fta" id="pnj-mot-eco" placeholder="Ressources convoitées, stratégie économique, commerce..." style="min-height:60px"></textarea>
-          </div>
-          <div class="fg" style="margin-bottom:0">
-            <label class="fl mot-label mil">Plan Militaire :</label>
-            <textarea class="fta" id="pnj-mot-mil" placeholder="Stratégie militaire, armées, conquêtes, défenses..." style="min-height:60px"></textarea>
-          </div>
+          <div class="fg"><label class="fl mot-label social">Plan Social :</label><textarea class="fta" id="pnj-mot-social" placeholder="Objectifs sociaux, alliances, influence populaire..." style="min-height:58px"></textarea></div>
+          <div class="fg"><label class="fl mot-label eco">Plan Économique :</label><textarea class="fta" id="pnj-mot-eco" placeholder="Ressources convoitées, stratégie économique..." style="min-height:58px"></textarea></div>
+          <div class="fg" style="margin-bottom:0"><label class="fl mot-label mil">Plan Militaire :</label><textarea class="fta" id="pnj-mot-mil" placeholder="Stratégie militaire, armées, conquêtes..." style="min-height:58px"></textarea></div>
         </div>
       </div>
 
       <button class="bsub" id="pnj-submit-btn" onclick="submitPNJ()">◆ Créer le PNJ</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ MODAL : NOUVEAU FILTRE ═══════════════ -->
+<div class="modal-overlay" id="filter-modal">
+  <div class="modal sm">
+    <div class="mac-cyan"></div>
+    <button class="mclose" onclick="closeFilterModal()">✕</button>
+    <div class="mi">
+      <div class="mt cyan">◈ Nouveau Filtre</div>
+      <p class="msub" style="border-left-color:rgba(0,245,255,0.4)">Créez un filtre personnalisé qui apparaîtra dans la barre de tri de la page PNJ.</p>
+      <div class="fg"><label class="fl">Nom du filtre <span class="req">*</span></label><input type="text" class="fi" id="new-filter-label" placeholder="Ex: Antagoniste, Gardien, Légendaire..."></div>
+      <div class="fg color-row">
+        <div class="fg" style="margin-bottom:0;flex:1"><label class="fl">Couleur</label><input type="text" class="fi" id="new-filter-color-hex" value="#b06eff" placeholder="#b06eff" oninput="syncColor(this.value)"></div>
+        <div class="color-preview" id="color-preview-box" style="background:#b06eff">
+          <input type="color" id="new-filter-color" value="#b06eff" oninput="syncHex(this.value)">
+        </div>
+      </div>
+      <!-- Preview -->
+      <div style="margin:16px 0 18px;padding:12px 16px;background:rgba(0,0,0,0.2);border:1px solid var(--border);">
+        <div style="font-family:'Share Tech Mono',monospace;font-size:.54rem;color:var(--muted);letter-spacing:.18em;margin-bottom:10px;text-transform:uppercase;">Aperçu :</div>
+        <div id="filter-preview-btn" style="display:inline-flex;align-items:center;gap:6px;font-family:'Share Tech Mono',monospace;font-size:.64rem;letter-spacing:.13em;text-transform:uppercase;padding:7px 14px;border:1px solid;color:#b06eff;border-color:rgba(176,110,255,0.44);">
+          <span id="fp-dot" style="width:6px;height:6px;border-radius:50%;background:#b06eff;box-shadow:0 0 5px #b06eff;display:inline-block"></span>
+          <span id="fp-label">Nouveau filtre</span>
+        </div>
+      </div>
+      <button class="bsub cyan-btn" id="filter-save-btn" onclick="saveFilter()">◈ Créer le filtre</button>
     </div>
   </div>
 </div>
@@ -478,19 +570,67 @@ footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:22
 </footer>
 
 <script>
-function filterCat(cat,btn){
-  document.querySelectorAll('.cat-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');
-  let v=0;document.querySelectorAll('.pnj-card[data-cat]').forEach(c=>{const show=cat==='all'||c.dataset.cat===cat;c.style.display=show?'':'none';if(show)v++;});
-  document.getElementById('no-results').style.display=v===0?'block':'none';
-  const empty=document.getElementById('empty-state');if(empty)empty.style.display='none';
+/* ── Modal controls ── */
+function openPNJModal(){
+  // Refresh category select with latest filters
+  if(window._refreshCategorySelect) window._refreshCategorySelect();
+  document.getElementById('pnj-modal').classList.add('open');
+  document.body.style.overflow='hidden';
 }
-function openPNJModal(){document.getElementById('pnj-modal').classList.add('open');document.body.style.overflow='hidden';}
 function closePNJModal(){document.getElementById('pnj-modal').classList.remove('open');document.body.style.overflow='';}
+function openFilterModal(){
+  document.getElementById('new-filter-label').value='';
+  document.getElementById('new-filter-color').value='#b06eff';
+  document.getElementById('new-filter-color-hex').value='#b06eff';
+  document.getElementById('color-preview-box').style.background='#b06eff';
+  updateFilterPreview('#b06eff','Nouveau filtre');
+  document.getElementById('filter-modal').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closeFilterModal(){document.getElementById('filter-modal').classList.remove('open');document.body.style.overflow='';}
+
+/* Close on backdrop click */
 document.getElementById('pnj-modal').addEventListener('click',e=>{if(e.target===e.currentTarget)closePNJModal();});
+document.getElementById('filter-modal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeFilterModal();});
+
+/* ── Color picker sync ── */
+function syncHex(v){
+  document.getElementById('new-filter-color-hex').value=v;
+  document.getElementById('color-preview-box').style.background=v;
+  updateFilterPreview(v, document.getElementById('new-filter-label').value||'Nouveau filtre');
+}
+function syncColor(v){
+  if(/^#[0-9a-fA-F]{6}$/.test(v)){
+    document.getElementById('new-filter-color').value=v;
+    document.getElementById('color-preview-box').style.background=v;
+    updateFilterPreview(v, document.getElementById('new-filter-label').value||'Nouveau filtre');
+  }
+}
+function updateFilterPreview(color,label){
+  const btn=document.getElementById('filter-preview-btn');
+  const dot=document.getElementById('fp-dot');
+  const lbl=document.getElementById('fp-label');
+  btn.style.color=color; btn.style.borderColor=color+'66';
+  dot.style.background=color; dot.style.boxShadow='0 0 5px '+color;
+  lbl.textContent=label||'Nouveau filtre';
+}
+document.getElementById('new-filter-label').addEventListener('input',e=>{
+  updateFilterPreview(document.getElementById('new-filter-color').value, e.target.value||'Nouveau filtre');
+});
+
+/* ── Photo preview ── */
 function pnjPrevFile(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{showPnjPrev(ev.target.result);document.getElementById('pnj-photo-url').value='';};r.readAsDataURL(f);}
 function pnjPrevUrl(u){if(!u){clearPnjPrev();return;}showPnjPrev(u);}
-function showPnjPrev(src){document.getElementById('pnj-pdtxt').style.display='none';let img=document.querySelector('#pnj-file').parentElement.querySelector('img.prev-img');if(!img){img=document.createElement('img');img.className='prev-img';document.querySelector('.photo-drop').appendChild(img);}img.src=src;}
+function showPnjPrev(src){document.getElementById('pnj-pdtxt').style.display='none';let img=document.querySelector('.photo-drop img.prev-img');if(!img){img=document.createElement('img');img.className='prev-img';document.querySelector('.photo-drop').appendChild(img);}img.src=src;}
 function clearPnjPrev(){document.getElementById('pnj-pdtxt').style.display='';const img=document.querySelector('.photo-drop img.prev-img');if(img)img.remove();}
+
+/* ── Refresh filter select after filter creation ── */
+const _origSaveFilter=window.saveFilter;
+window.saveFilter=async function(){
+  await _origSaveFilter();
+  // after creating filter, update category select in PNJ modal
+  if(window._refreshCategorySelect) window._refreshCategorySelect();
+};
 </script>
 </body>
 </html>
