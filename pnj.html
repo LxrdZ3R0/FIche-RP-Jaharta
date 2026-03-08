@@ -4,6 +4,182 @@
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>JAHARTA // PNJ Importants</title>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=Share+Tech+Mono&family=Rajdhani:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+<!-- FIREBASE -->
+<script type="module">
+import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import{getFirestore,collection,addDoc,getDocs,deleteDoc,doc,query,orderBy,serverTimestamp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import{getStorage,ref,uploadBytes,getDownloadURL}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
+import{getAuth,onAuthStateChanged}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+const firebaseConfig={apiKey:"AIzaSyAru7qZX8Gu_b8Y3oNDV-a5PmkrrkRjkcs",authDomain:"jaharta-rp.firebaseapp.com",projectId:"jaharta-rp",storageBucket:"jaharta-rp.firebasestorage.app",messagingSenderId:"217075417489",appId:"1:217075417489:web:4d1e2df422a5cd42411a30",measurementId:"G-15JSSBZWCH"};
+const app=initializeApp(firebaseConfig);
+const db=getFirestore(app);
+const storage=getStorage(app);
+const auth=getAuth(app);
+
+/* ── Auth state ── */
+onAuthStateChanged(auth, user => {
+  window._isAdmin = !!user;
+  document.querySelectorAll('.admin-only').forEach(el => {
+    el.style.display = user ? '' : 'none';
+  });
+  if (user) loadPNJ();
+  else loadPNJ();
+});
+
+/* ── Load PNJ ── */
+async function loadPNJ() {
+  try {
+    const q = query(collection(db,"pnj"), orderBy("createdAt","desc"));
+    const snap = await getDocs(q);
+    const container = document.getElementById('pnj-container');
+    // Clear existing firebase cards (keep static examples if firebase empty)
+    const existing = container.querySelectorAll('.pnj-card[data-firebase]');
+    existing.forEach(c=>c.remove());
+    snap.forEach(d => {
+      const pnj = {id:d.id,...d.data()};
+      container.insertBefore(buildPNJCard(pnj), container.firstChild);
+    });
+    updateFilterCounts();
+  } catch(e) { console.warn("Firebase PNJ load:", e.message); updateFilterCounts(); }
+}
+
+/* ── Add PNJ ── */
+window.submitPNJ = async function() {
+  if (!window._isAdmin) { showToast('⚠ Connexion admin requise', 'error'); return; }
+  const nom      = document.getElementById('pnj-nom').value.trim();
+  const prenom   = document.getElementById('pnj-prenom').value.trim();
+  const age      = document.getElementById('pnj-age').value.trim();
+  const race     = document.getElementById('pnj-race').value.trim();
+  const role     = document.getElementById('pnj-role').value.trim();
+  const titre    = document.getElementById('pnj-titre').value.trim();
+  const marital  = document.getElementById('pnj-marital').value.trim();
+  const taille   = document.getElementById('pnj-taille').value.trim();
+  const category = document.getElementById('pnj-category').value;
+  const danger   = document.getElementById('pnj-danger').value;
+  const photoUrl = document.getElementById('pnj-photo-url').value.trim();
+  const desc     = document.getElementById('pnj-desc').value.trim();
+  const motSocial= document.getElementById('pnj-mot-social').value.trim();
+  const motEco   = document.getElementById('pnj-mot-eco').value.trim();
+  const motMil   = document.getElementById('pnj-mot-mil').value.trim();
+
+  if (!nom || !prenom || !category || !desc) {
+    showToast('Remplissez au moins : Nom, Prénom, Catégorie et Description.', 'error'); return;
+  }
+  const btn = document.getElementById('pnj-submit-btn');
+  btn.disabled=true; btn.textContent='⟳ Création...';
+
+  let finalPhoto = photoUrl;
+  const photoFile = document.getElementById('pnj-file').files[0];
+  if (photoFile) {
+    try {
+      const r2=ref(storage,`pnj/${Date.now()}_${photoFile.name}`);
+      const snap2=await uploadBytes(r2,photoFile);
+      finalPhoto=await getDownloadURL(snap2.ref);
+    } catch(e) { console.warn("Upload PNJ photo:", e.message); }
+  }
+
+  try {
+    await addDoc(collection(db,"pnj"), {
+      nom, prenom, age, race, role, titre, marital, taille,
+      category, danger, photoUrl:finalPhoto, desc,
+      motivations:{ social:motSocial, economique:motEco, militaire:motMil },
+      createdAt: serverTimestamp()
+    });
+    showToast('✓ PNJ créé avec succès !', 'success');
+    closePNJModal();
+    loadPNJ();
+  } catch(e) { showToast('⚠ Erreur : '+e.message, 'error'); }
+
+  btn.disabled=false; btn.textContent='▸ Créer le PNJ';
+};
+
+/* ── Delete PNJ ── */
+window.deletePNJ = async function(id) {
+  if (!window._isAdmin) return;
+  if (!confirm('Supprimer définitivement ce PNJ ?')) return;
+  try {
+    await deleteDoc(doc(db,"pnj",id));
+    const card = document.querySelector(`.pnj-card[data-id="${id}"]`);
+    if (card) card.remove();
+    showToast('PNJ supprimé.', 'error');
+    updateFilterCounts();
+  } catch(e) { showToast('Erreur suppression: '+e.message,'error'); }
+};
+
+/* ── Build PNJ Card ── */
+function buildPNJCard(p) {
+  const catColors = {politique:'#60a5fa',mystique:'#b06eff',ennemi:'#ff3030',allie:'#34d399',neutre:'#fbbf24'};
+  const catLabels = {politique:'Politique',mystique:'Mystique',ennemi:'Ennemi',allie:'Allié',neutre:'Neutre'};
+  const c = catColors[p.category] || '#00f5ff';
+  const cl = catLabels[p.category] || p.category;
+  const hasMotivations = p.motivations && (p.motivations.social || p.motivations.economique || p.motivations.militaire);
+
+  const card = document.createElement('div');
+  card.className = 'pnj-card';
+  card.dataset.cat = p.category;
+  card.dataset.firebase = '1';
+  card.dataset.id = p.id || '';
+
+  const photoHTML = p.photoUrl
+    ? `<img src="${p.photoUrl}" alt="${p.prenom}" onerror="this.remove()">`
+    : `<div class="pnj-photo-ph" style="color:${c}">${(p.prenom||'?')[0]}</div>`;
+
+  const motivHTML = hasMotivations ? `
+    <div class="pnj-divider"></div>
+    <div class="pnj-mot-title">Motivations</div>
+    ${p.motivations.social?`<div class="pnj-mot-item"><span class="pnj-mot-lbl" style="color:#60a5fa">Plan Social :</span> <span>${p.motivations.social}</span></div>`:''}
+    ${p.motivations.economique?`<div class="pnj-mot-item"><span class="pnj-mot-lbl" style="color:#ffd60a">Plan Économique :</span> <span>${p.motivations.economique}</span></div>`:''}
+    ${p.motivations.militaire?`<div class="pnj-mot-item"><span class="pnj-mot-lbl" style="color:#ff3030">Plan Militaire :</span> <span>${p.motivations.militaire}</span></div>`:''}
+  ` : '';
+
+  const adminBtns = p.id ? `
+    <button class="pnj-del-btn admin-only" onclick="deletePNJ('${p.id}')" style="display:${window._isAdmin?'flex':'none'}">✕ Supprimer</button>
+  ` : '';
+
+  card.innerHTML = `
+    <div class="pnj-photo" style="background:linear-gradient(135deg,${c}12,#04060f)">
+      <div class="pnj-stripe" style="background:linear-gradient(90deg,${c},${c}20)"></div>
+      <div class="pnj-photo-ov" style="background:linear-gradient(180deg,transparent 25%,rgba(8,13,26,0.7) 65%,var(--dark2) 100%)"></div>
+      ${photoHTML}
+      <div class="danger-badge" style="color:${c};border-color:${c}80;background:${c}18">${p.danger||'?'}</div>
+      <div class="cat-badge" style="color:${c};border-color:${c}55;background:${c}10">${cl}</div>
+    </div>
+    <div class="pnj-body">
+      <div class="pnj-title">${p.prenom||''} ${p.nom||''}</div>
+      ${p.titre?`<div class="pnj-epithet">// ${p.titre}</div>`:''}
+      <div class="pnj-tags">
+        ${p.race?`<span class="pnj-tag">${p.race}</span>`:''}
+        ${p.role?`<span class="pnj-tag">${p.role}</span>`:''}
+        ${p.age?`<span class="pnj-tag">${p.age} ans</span>`:''}
+        ${p.taille?`<span class="pnj-tag">${p.taille}</span>`:''}
+        ${p.marital?`<span class="pnj-tag">${p.marital}</span>`:''}
+      </div>
+      <p class="pnj-desc">${p.desc||''}</p>
+      ${motivHTML}
+      ${adminBtns}
+    </div>
+    <div class="pnj-deco"></div>
+  `;
+  return card;
+}
+
+function updateFilterCounts() {
+  const cats = ['politique','mystique','ennemi','allie','neutre'];
+  cats.forEach(c => {
+    const n = document.querySelectorAll(`.pnj-card[data-cat="${c}"]`).length;
+    const el = document.getElementById('cnt-'+c);
+    if(el) el.textContent = n;
+  });
+  const total = document.querySelectorAll('.pnj-card[data-cat]').length;
+  const elAll = document.getElementById('cnt-all');
+  if(elAll) elAll.textContent = total;
+}
+
+function showToast(msg,type='success'){const t=document.getElementById('toast');t.textContent=msg;t.className=`toast ${type} show`;setTimeout(()=>{t.className='toast';},4000);}
+</script>
+
 <style>
 :root{--cyan:#00f5ff;--magenta:#ff006e;--gold:#ffd60a;--dark:#04060f;--dark2:#080d1a;--panel:rgba(0,245,255,0.035);--border:rgba(0,245,255,0.16);--text:#c8e0f0;--muted:#5a7a90;}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}html{scroll-behavior:smooth;}
@@ -21,6 +197,9 @@ nav a.active{color:var(--magenta);border-color:rgba(255,0,110,0.22);background:r
 nav a.active::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:1px;background:var(--magenta);box-shadow:0 0 8px var(--magenta);}
 .nav-admin{color:var(--gold)!important;border-color:rgba(255,214,10,0.22)!important;font-family:'Orbitron',sans-serif!important;font-weight:700!important;font-size:0.58rem!important;letter-spacing:0.18em!important;margin-left:6px;}
 .nav-admin:hover{border-color:var(--gold)!important;background:rgba(255,214,10,0.05)!important;}
+.add-pnj-btn{font-family:'Orbitron',sans-serif;font-weight:700;font-size:0.58rem;letter-spacing:0.18em;color:var(--dark)!important;background:var(--magenta);padding:8px 16px;clip-path:polygon(8px 0%,100% 0%,calc(100% - 8px) 100%,0% 100%);border:none!important;margin-left:8px;cursor:pointer;transition:background .2s,box-shadow .2s;display:none;}
+.add-pnj-btn:hover{background:#fff!important;box-shadow:0 0 18px var(--magenta);}
+.admin-only{display:none;}
 
 /* PAGE HERO */
 .page-hero{position:relative;z-index:1;padding:52px 44px 44px;border-bottom:1px solid rgba(255,0,110,0.15);background:linear-gradient(180deg,rgba(255,0,110,0.04) 0%,transparent 100%);overflow:hidden;}
@@ -30,13 +209,12 @@ nav a.active::after{content:'';position:absolute;bottom:-1px;left:0;right:0;heig
 .ph-title{font-family:'Orbitron',sans-serif;font-weight:900;font-size:clamp(2rem,5vw,3.4rem);color:#fff;letter-spacing:0.06em;line-height:1;}
 .ph-title span{color:var(--magenta);text-shadow:0 0 22px var(--magenta);}
 .ph-sub{font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:var(--muted);letter-spacing:0.15em;margin-top:10px;max-width:600px;line-height:1.7;}
-.ph-warn{display:inline-flex;align-items:center;gap:8px;margin-top:18px;font-family:'Share Tech Mono',monospace;font-size:0.6rem;letter-spacing:0.14em;color:var(--gold);border:1px solid rgba(255,214,10,0.3);padding:8px 16px;background:rgba(255,214,10,0.05);}
 
 /* PAGE WRAP */
 .page-wrap{position:relative;z-index:1;padding:52px 44px;max-width:1380px;margin:0 auto;}
 
 /* CATEGORY FILTER */
-.cat-filter{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:40px;padding-bottom:18px;border-bottom:1px solid var(--border);}
+.cat-filter{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:40px;padding-bottom:18px;border-bottom:1px solid var(--border);align-items:center;}
 .cat-btn{font-family:'Share Tech Mono',monospace;font-size:0.64rem;letter-spacing:0.13em;text-transform:uppercase;background:transparent;border:1px solid;padding:7px 14px;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.22s;}
 .cat-btn.active,.cat-btn:hover{background:rgba(255,255,255,0.035);}
 .cat-btn[data-cat="all"]      {color:var(--text);border-color:rgba(200,224,240,0.22);}
@@ -51,49 +229,91 @@ nav a.active::after{content:'';position:absolute;bottom:-1px;left:0;right:0;heig
 .cat-btn[data-cat="allie"].active,.cat-btn[data-cat="allie"]:hover{background:rgba(52,211,153,0.05);}
 .cat-btn[data-cat="neutre"]    {color:#fbbf24;border-color:rgba(251,191,36,0.25);}
 .cat-btn[data-cat="neutre"].active,.cat-btn[data-cat="neutre"]:hover{background:rgba(251,191,36,0.05);}
+.cat-cnt{font-family:'Orbitron',sans-serif;font-size:0.5rem;font-weight:700;background:rgba(255,255,255,0.07);padding:2px 6px;border-radius:2px;min-width:18px;text-align:center;}
 
 /* PNJ GRID */
 .pnj-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:24px;}
 
 .pnj-card{position:relative;background:var(--dark2);border:1px solid var(--border);overflow:hidden;display:flex;flex-direction:column;transition:border-color .3s,box-shadow .3s,transform .28s;clip-path:polygon(24px 0%,100% 0%,100% calc(100% - 24px),calc(100% - 24px) 100%,0% 100%,0% 24px);}
-.pnj-card:hover{transform:translateY(-6px);}
-.pnj-card[data-cat="politique"]:hover{border-color:#60a5fa;box-shadow:0 0 28px rgba(96,165,250,0.14),0 12px 38px rgba(0,0,0,0.5);}
-.pnj-card[data-cat="mystique"]:hover {border-color:#b06eff;box-shadow:0 0 28px rgba(176,110,255,0.14),0 12px 38px rgba(0,0,0,0.5);}
-.pnj-card[data-cat="ennemi"]:hover   {border-color:#ff3030;box-shadow:0 0 28px rgba(255,48,48,0.16),0 12px 38px rgba(0,0,0,0.5);}
-.pnj-card[data-cat="allie"]:hover    {border-color:#34d399;box-shadow:0 0 28px rgba(52,211,153,0.14),0 12px 38px rgba(0,0,0,0.5);}
-.pnj-card[data-cat="neutre"]:hover   {border-color:#fbbf24;box-shadow:0 0 28px rgba(251,191,36,0.14),0 12px 38px rgba(0,0,0,0.5);}
+.pnj-card:hover{transform:translateY(-5px);}
+.pnj-card[data-cat="politique"]:hover{border-color:#60a5fa;box-shadow:0 0 26px rgba(96,165,250,0.14),0 12px 38px rgba(0,0,0,0.5);}
+.pnj-card[data-cat="mystique"]:hover {border-color:#b06eff;box-shadow:0 0 26px rgba(176,110,255,0.14),0 12px 38px rgba(0,0,0,0.5);}
+.pnj-card[data-cat="ennemi"]:hover   {border-color:#ff3030;box-shadow:0 0 26px rgba(255,48,48,0.16),0 12px 38px rgba(0,0,0,0.5);}
+.pnj-card[data-cat="allie"]:hover    {border-color:#34d399;box-shadow:0 0 26px rgba(52,211,153,0.14),0 12px 38px rgba(0,0,0,0.5);}
+.pnj-card[data-cat="neutre"]:hover   {border-color:#fbbf24;box-shadow:0 0 26px rgba(251,191,36,0.14),0 12px 38px rgba(0,0,0,0.5);}
 
-/* PNJ PHOTO */
-.pnj-photo{position:relative;width:100%;height:240px;overflow:hidden;flex-shrink:0;background:#0a0408;}
+.pnj-photo{position:relative;width:100%;height:230px;overflow:hidden;flex-shrink:0;background:#0a0408;}
 .pnj-photo img{width:100%;height:100%;object-fit:cover;object-position:top;filter:saturate(1.05) contrast(1.08);transition:transform .5s,filter .4s;}
 .pnj-card:hover .pnj-photo img{transform:scale(1.06);filter:saturate(1.25) contrast(1.12);}
 .pnj-photo-ov{position:absolute;inset:0;pointer-events:none;}
 .pnj-photo-ph{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-family:'Orbitron',sans-serif;font-size:3rem;font-weight:900;opacity:0.4;}
 .pnj-stripe{position:absolute;top:0;left:0;right:0;height:3px;z-index:2;}
-
-/* DANGER BADGE */
 .danger-badge{position:absolute;top:12px;left:12px;z-index:3;font-family:'Orbitron',sans-serif;font-weight:800;font-size:.6rem;letter-spacing:.12em;padding:5px 12px;border:1px solid;text-transform:uppercase;}
-
-/* CAT BADGE */
 .cat-badge{position:absolute;top:12px;right:12px;z-index:3;font-family:'Share Tech Mono',monospace;font-size:.54rem;letter-spacing:.16em;text-transform:uppercase;padding:4px 10px;border:1px solid;}
-
-/* PNJ BODY */
 .pnj-body{padding:20px 22px 22px;display:flex;flex-direction:column;flex:1;}
 .pnj-title{font-family:'Orbitron',sans-serif;font-weight:800;font-size:1.1rem;color:#fff;letter-spacing:.06em;line-height:1.05;margin-bottom:4px;}
 .pnj-epithet{font-family:'Share Tech Mono',monospace;font-size:.58rem;letter-spacing:.2em;color:var(--muted);text-transform:uppercase;margin-bottom:12px;}
 .pnj-tags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;}
 .pnj-tag{font-family:'Share Tech Mono',monospace;font-size:.52rem;letter-spacing:.1em;text-transform:uppercase;padding:2px 9px;border:1px solid var(--border);color:var(--muted);}
-.pnj-desc{font-size:.85rem;color:var(--muted);line-height:1.7;font-weight:300;flex:1;margin-bottom:16px;}
-.pnj-divider{height:1px;background:var(--border);margin-bottom:14px;}
-.pnj-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
-.pnj-stat{text-align:center;padding:8px 4px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);}
-.pnj-stat-val{font-family:'Orbitron',sans-serif;font-size:.9rem;font-weight:700;display:block;line-height:1;}
-.pnj-stat-key{font-family:'Share Tech Mono',monospace;font-size:.46rem;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;display:block;margin-top:3px;}
+.pnj-desc{font-size:.85rem;color:var(--muted);line-height:1.7;font-weight:300;flex:1;margin-bottom:14px;}
+.pnj-divider{height:1px;background:var(--border);margin-bottom:12px;}
+.pnj-mot-title{font-family:'Orbitron',sans-serif;font-size:.62rem;font-weight:700;letter-spacing:.18em;color:#fff;text-transform:uppercase;margin-bottom:10px;}
+.pnj-mot-item{font-family:'Share Tech Mono',monospace;font-size:.62rem;letter-spacing:.08em;color:var(--muted);line-height:1.65;margin-bottom:6px;}
+.pnj-mot-lbl{font-weight:700;}
+.pnj-del-btn{font-family:'Share Tech Mono',monospace;font-size:.56rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);background:transparent;border:1px solid rgba(90,122,144,0.3);padding:5px 12px;cursor:pointer;transition:all .2s;margin-top:10px;align-self:flex-start;display:flex;align-items:center;gap:6px;}
+.pnj-del-btn:hover{color:#ff3030;border-color:rgba(255,48,48,0.35);background:rgba(255,48,48,0.04);}
 .pnj-deco{position:absolute;bottom:0;right:0;width:24px;height:24px;border-top:1px solid var(--border);border-left:1px solid var(--border);pointer-events:none;z-index:2;}
 
-/* ADD PNJ ADMIN NOTE */
-.admin-note{background:rgba(255,214,10,0.04);border:1px solid rgba(255,214,10,0.2);padding:20px 24px;margin-bottom:36px;font-family:'Share Tech Mono',monospace;font-size:.62rem;color:var(--gold);letter-spacing:.1em;line-height:1.8;}
-.admin-note strong{color:#fff;}
+/* ── MODAL PNJ ── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(4,6,15,0.94);z-index:1000;align-items:flex-start;justify-content:center;backdrop-filter:blur(6px);padding:30px 16px;overflow-y:auto;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--dark2);border:1px solid rgba(255,0,110,0.3);width:92%;max-width:660px;position:relative;clip-path:polygon(24px 0%,100% 0%,100% calc(100% - 24px),calc(100% - 24px) 100%,0% 100%,0% 24px);animation:mIn .28s ease;margin:auto;}
+@keyframes mIn{from{opacity:0;transform:scale(.96) translateY(12px)}to{opacity:1;transform:none}}
+.mac{height:3px;background:linear-gradient(90deg,var(--magenta),var(--gold));}
+.mi{padding:28px 30px 32px;}
+.mt{font-family:'Orbitron',sans-serif;font-size:.85rem;font-weight:700;letter-spacing:.25em;color:var(--magenta);text-transform:uppercase;margin-bottom:6px;}
+.msub{font-family:'Share Tech Mono',monospace;font-size:.6rem;color:var(--muted);letter-spacing:.1em;margin-bottom:22px;border-left:2px solid rgba(255,0,110,0.4);padding-left:12px;line-height:1.7;}
+
+/* Form sections */
+.form-section{margin-bottom:20px;}
+.form-section-title{font-family:'Orbitron',sans-serif;font-size:.62rem;font-weight:700;letter-spacing:.22em;color:var(--muted);text-transform:uppercase;margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;}
+.form-section-title::before{content:'';display:block;width:3px;height:12px;background:var(--magenta);}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.frow3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+.fg{margin-bottom:12px;}
+.fg:last-child{margin-bottom:0;}
+.fl{display:block;font-family:'Share Tech Mono',monospace;font-size:.56rem;letter-spacing:.2em;color:var(--muted);text-transform:uppercase;margin-bottom:5px;}
+.fl .req{color:var(--magenta);}
+.fi,.fs,.fta{width:100%;background:rgba(255,0,110,0.03);border:1px solid var(--border);color:var(--text);font-family:'Rajdhani',sans-serif;font-size:.9rem;padding:9px 12px;outline:none;transition:border-color .2s,box-shadow .2s;}
+.fi:focus,.fs:focus,.fta:focus{border-color:rgba(255,0,110,0.5);box-shadow:0 0 10px rgba(255,0,110,0.07);}
+.fs option{background:var(--dark2);}
+.fta{resize:vertical;min-height:72px;}
+
+/* Sub-textarea (motivations) */
+.mot-block{background:rgba(0,0,0,0.2);border:1px solid var(--border);padding:14px 16px;margin-bottom:0;}
+.mot-label{font-family:'Share Tech Mono',monospace;font-size:.58rem;letter-spacing:.18em;text-transform:uppercase;margin-bottom:5px;display:block;}
+.mot-label.social{color:#60a5fa;}
+.mot-label.eco{color:#ffd60a;}
+.mot-label.mil{color:#ff3030;}
+
+/* Photo drop */
+.photo-drop{width:100%;height:90px;background:rgba(255,0,110,0.03);border:1px dashed rgba(255,0,110,0.25);display:flex;align-items:center;justify-content:center;position:relative;cursor:pointer;transition:border-color .2s;overflow:hidden;}
+.photo-drop:hover{border-color:var(--magenta);}
+.photo-drop img.prev-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+.photo-drop input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;}
+.pdtxt{font-family:'Share Tech Mono',monospace;font-size:.56rem;color:var(--muted);letter-spacing:.1em;text-align:center;pointer-events:none;}
+
+.bsub{width:100%;font-family:'Orbitron',sans-serif;font-size:.7rem;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:var(--dark);background:var(--magenta);border:none;padding:13px;cursor:pointer;margin-top:6px;clip-path:polygon(12px 0%,100% 0%,calc(100% - 12px) 100%,0% 100%);transition:background .2s,box-shadow .2s;}
+.bsub:hover{background:#fff;box-shadow:0 0 24px var(--magenta);}
+.bsub:disabled{background:var(--muted);cursor:not-allowed;box-shadow:none;}
+.mclose{position:absolute;top:14px;right:14px;background:transparent;border:1px solid var(--border);color:var(--muted);width:28px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.85rem;transition:color .2s,border-color .2s;}
+.mclose:hover{color:var(--magenta);border-color:var(--magenta);}
+
+/* TOAST */
+.toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--dark2);border:1px solid var(--border);font-family:'Share Tech Mono',monospace;font-size:.67rem;letter-spacing:.12em;color:var(--text);padding:13px 26px;z-index:9000;transition:transform .35s,opacity .35s;opacity:0;clip-path:polygon(10px 0%,100% 0%,calc(100% - 10px) 100%,0% 100%);}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
+.toast.success{border-color:rgba(0,255,136,0.5);color:#00ff88;}
+.toast.error{border-color:rgba(255,48,48,0.5);color:#ff3030;}
 
 /* FOOTER */
 footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:22px 44px;display:flex;align-items:center;justify-content:space-between;margin-top:60px;}
@@ -105,10 +325,12 @@ footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:22
 .hdot{width:5px;height:5px;border-radius:50%;background:#00ff88;box-shadow:0 0 7px #00ff88;display:inline-block;margin-right:5px;animation:p 2s infinite;}
 @keyframes p{0%,100%{opacity:1}50%{opacity:.3}}
 ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:var(--dark)}::-webkit-scrollbar-thumb{background:var(--border)}::-webkit-scrollbar-thumb:hover{background:var(--cyan)}
-@media(max-width:880px){header{padding:0 16px}nav a span{display:none}.page-wrap,.page-hero{padding:32px 16px}footer{flex-direction:column;gap:10px;text-align:center;padding:20px 16px}.pnj-grid{grid-template-columns:1fr}}
+@media(max-width:880px){header{padding:0 16px}nav a span{display:none}.page-wrap,.page-hero{padding:32px 16px}footer{flex-direction:column;gap:10px;text-align:center;padding:20px 16px}.pnj-grid{grid-template-columns:1fr}.frow{grid-template-columns:1fr}.frow3{grid-template-columns:1fr 1fr}}
 </style>
 </head>
 <body>
+<div class="toast" id="toast"></div>
+
 <header>
   <a href="index.html" class="logo">JAHARTA <span class="logo-slash">//</span> RP<span class="logo-sub">UNIVERS JAHARTA · ROLEPLAY OFFICIEL</span></a>
   <nav>
@@ -117,6 +339,7 @@ footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:22
     <a href="pnj.html" class="active">◆ <span>PNJ</span></a>
     <a href="portail.html">⬡ <span>Portail</span></a>
     <a href="admin.html" class="nav-admin">⚙ Admin</a>
+    <button class="add-pnj-btn admin-only" onclick="openPNJModal()" id="add-pnj-nav-btn">+ PNJ</button>
   </nav>
 </header>
 
@@ -126,200 +349,127 @@ footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:22
     <p class="ph-tag">▸ PERSONNAGES NON-JOUEURS · FIGURES CLÉS DE L'UNIVERS</p>
     <h1 class="ph-title">PNJ <span>Importants</span></h1>
     <p class="ph-sub">Les entités, seigneurs et figures mythiques qui gouvernent, menacent ou protègent le monde de Jaharta. Ces personnages sont gérés par les administrateurs.</p>
-    <div class="ph-warn">⚠ Ces fiches sont créées et gérées exclusivement par les admins Jaharta</div>
   </div>
 </div>
 
 <div class="page-wrap">
 
-  <!-- ADMIN NOTE -->
-  <div class="admin-note">
-    ▸ <strong>Pour les admins :</strong> Vous pouvez ajouter des PNJ directement dans Firebase sous la collection <strong>pnj</strong>, avec les champs : name, epithet, category, photo, desc, tags, stats, dangerLevel.<br>
-    ▸ Les catégories disponibles : <strong>politique · mystique · ennemi · allie · neutre</strong>
-  </div>
-
   <!-- CATEGORY FILTER -->
   <div class="cat-filter">
-    <button class="cat-btn active" data-cat="all" onclick="filterCat('all',this)">Tous</button>
-    <button class="cat-btn" data-cat="politique" onclick="filterCat('politique',this)">◈ Politique</button>
-    <button class="cat-btn" data-cat="mystique"  onclick="filterCat('mystique',this)">◆ Mystique</button>
-    <button class="cat-btn" data-cat="ennemi"    onclick="filterCat('ennemi',this)">⚔ Ennemi</button>
-    <button class="cat-btn" data-cat="allie"     onclick="filterCat('allie',this)">◇ Allié</button>
-    <button class="cat-btn" data-cat="neutre"    onclick="filterCat('neutre',this)">◉ Neutre</button>
+    <button class="cat-btn active" data-cat="all"       onclick="filterCat('all',this)">Tous <span class="cat-cnt" id="cnt-all">0</span></button>
+    <button class="cat-btn" data-cat="politique"        onclick="filterCat('politique',this)">◈ Politique <span class="cat-cnt" id="cnt-politique">0</span></button>
+    <button class="cat-btn" data-cat="mystique"         onclick="filterCat('mystique',this)">◆ Mystique <span class="cat-cnt" id="cnt-mystique">0</span></button>
+    <button class="cat-btn" data-cat="ennemi"           onclick="filterCat('ennemi',this)">⚔ Ennemi <span class="cat-cnt" id="cnt-ennemi">0</span></button>
+    <button class="cat-btn" data-cat="allie"            onclick="filterCat('allie',this)">◇ Allié <span class="cat-cnt" id="cnt-allie">0</span></button>
+    <button class="cat-btn" data-cat="neutre"           onclick="filterCat('neutre',this)">◉ Neutre <span class="cat-cnt" id="cnt-neutre">0</span></button>
   </div>
 
   <div class="pnj-grid" id="pnj-container">
-    <!-- PNJ EXEMPLES — remplacez par vos vrais PNJ -->
-
-    <div class="pnj-card" data-cat="mystique">
-      <div class="pnj-photo" style="background:linear-gradient(135deg,#110a1e,#04060f)">
-        <div class="pnj-stripe" style="background:linear-gradient(90deg,#b06eff,rgba(176,110,255,0.15))"></div>
-        <div class="pnj-photo-ov" style="background:linear-gradient(180deg,transparent 25%,rgba(8,13,26,0.7) 65%,var(--dark2) 100%)"></div>
-        <div class="pnj-photo-ph" style="color:#b06eff">✦</div>
-        <div class="danger-badge" style="color:#b06eff;border-color:rgba(176,110,255,0.5);background:rgba(176,110,255,0.1)">DANGER : SSS</div>
-        <div class="cat-badge" style="color:#b06eff;border-color:rgba(176,110,255,0.35);background:rgba(176,110,255,0.07)">Mystique</div>
-      </div>
-      <div class="pnj-body">
-        <div class="pnj-title">L'Entité Sans Nom</div>
-        <div class="pnj-epithet">// Le Vide Originel · Avant le Commencement</div>
-        <div class="pnj-tags">
-          <span class="pnj-tag">Immortel</span>
-          <span class="pnj-tag">Omniscient</span>
-          <span class="pnj-tag">Indicible</span>
-        </div>
-        <p class="pnj-desc">Une présence antérieure à Jaharta elle-même. Son existence est débattue par les anciens — certains la vénèrent, d'autres nient sa réalité. Ceux qui l'ont approchée ne reviennent jamais inchangés.</p>
-        <div class="pnj-divider"></div>
-        <div class="pnj-stats">
-          <div class="pnj-stat"><span class="pnj-stat-val" style="color:#b06eff">SSS</span><span class="pnj-stat-key">Puissance</span></div>
-          <div class="pnj-stat"><span class="pnj-stat-val" style="color:#b06eff">∞</span><span class="pnj-stat-key">Âge</span></div>
-          <div class="pnj-stat"><span class="pnj-stat-val" style="color:#b06eff">?</span><span class="pnj-stat-key">Localisation</span></div>
-        </div>
-      </div>
-      <div class="pnj-deco"></div>
-    </div>
-
-    <div class="pnj-card" data-cat="politique">
-      <div class="pnj-photo" style="background:linear-gradient(135deg,#0a0f1e,#04060f)">
-        <div class="pnj-stripe" style="background:linear-gradient(90deg,#60a5fa,rgba(96,165,250,0.15))"></div>
-        <div class="pnj-photo-ov" style="background:linear-gradient(180deg,transparent 25%,rgba(8,13,26,0.7) 65%,var(--dark2) 100%)"></div>
-        <div class="pnj-photo-ph" style="color:#60a5fa">⬡</div>
-        <div class="danger-badge" style="color:#60a5fa;border-color:rgba(96,165,250,0.5);background:rgba(96,165,250,0.1)">DANGER : A</div>
-        <div class="cat-badge" style="color:#60a5fa;border-color:rgba(96,165,250,0.35);background:rgba(96,165,250,0.07)">Politique</div>
-      </div>
-      <div class="pnj-body">
-        <div class="pnj-title">Le Conseil des Sept</div>
-        <div class="pnj-epithet">// Gouvernants Suprêmes · Jaharta Centrale</div>
-        <div class="pnj-tags">
-          <span class="pnj-tag">Gouvernants</span>
-          <span class="pnj-tag">Sept membres</span>
-          <span class="pnj-tag">Impériaux</span>
-        </div>
-        <p class="pnj-desc">L'organe dirigeant de Jaharta Centrale. Composé de sept représentants issus des factions les plus puissantes, le Conseil contrôle les lois, les ressources et les alliances entre races.</p>
-        <div class="pnj-divider"></div>
-        <div class="pnj-stats">
-          <div class="pnj-stat"><span class="pnj-stat-val" style="color:#60a5fa">A</span><span class="pnj-stat-key">Puissance</span></div>
-          <div class="pnj-stat"><span class="pnj-stat-val" style="color:#60a5fa">+400</span><span class="pnj-stat-key">Ans</span></div>
-          <div class="pnj-stat"><span class="pnj-stat-val" style="color:#60a5fa">C.J</span><span class="pnj-stat-key">Zone</span></div>
-        </div>
-      </div>
-      <div class="pnj-deco"></div>
-    </div>
-
-    <div class="pnj-card" data-cat="ennemi">
-      <div class="pnj-photo" style="background:linear-gradient(135deg,#1a0404,#04060f)">
-        <div class="pnj-stripe" style="background:linear-gradient(90deg,#ff3030,rgba(255,48,48,0.15))"></div>
-        <div class="pnj-photo-ov" style="background:linear-gradient(180deg,transparent 25%,rgba(8,13,26,0.7) 65%,var(--dark2) 100%)"></div>
-        <div class="pnj-photo-ph" style="color:#ff3030">⚔</div>
-        <div class="danger-badge" style="color:#ff3030;border-color:rgba(255,48,48,0.5);background:rgba(255,48,48,0.1)">DANGER : SS</div>
-        <div class="cat-badge" style="color:#ff3030;border-color:rgba(255,48,48,0.35);background:rgba(255,48,48,0.07)">Ennemi</div>
-      </div>
-      <div class="pnj-body">
-        <div class="pnj-title">Vérath le Consumé</div>
-        <div class="pnj-epithet">// Seigneur de la Brûlure · Terres Ravagées</div>
-        <div class="pnj-tags">
-          <span class="pnj-tag">Démon ancien</span>
-          <span class="pnj-tag">Conquérant</span>
-          <span class="pnj-tag">Impitoyable</span>
-        </div>
-        <p class="pnj-desc">Ancien général démoniaque qui s'est consumé dans un rituel d'ascension interdit. Sa forme actuelle est mi-chair, mi-flamme. Il souhaite étendre les Terres Ravagées à tout Jaharta.</p>
-        <div class="pnj-divider"></div>
-        <div class="pnj-stats">
-          <div class="pnj-stat"><span class="pnj-stat-val" style="color:#ff3030">SS</span><span class="pnj-stat-key">Puissance</span></div>
-          <div class="pnj-stat"><span class="pnj-stat-val" style="color:#ff3030">~800</span><span class="pnj-stat-key">Ans</span></div>
-          <div class="pnj-stat"><span class="pnj-stat-val" style="color:#ff3030">T.R</span><span class="pnj-stat-key">Zone</span></div>
-        </div>
-      </div>
-      <div class="pnj-deco"></div>
-    </div>
-
-    <div class="pnj-card" data-cat="allie">
-      <div class="pnj-photo" style="background:linear-gradient(135deg,#041a0e,#04060f)">
-        <div class="pnj-stripe" style="background:linear-gradient(90deg,#34d399,rgba(52,211,153,0.15))"></div>
-        <div class="pnj-photo-ov" style="background:linear-gradient(180deg,transparent 25%,rgba(8,13,26,0.7) 65%,var(--dark2) 100%)"></div>
-        <div class="pnj-photo-ph" style="color:#34d399">◇</div>
-        <div class="danger-badge" style="color:#34d399;border-color:rgba(52,211,153,0.5);background:rgba(52,211,153,0.1)">RANG : S</div>
-        <div class="cat-badge" style="color:#34d399;border-color:rgba(52,211,153,0.35);background:rgba(52,211,153,0.07)">Allié</div>
-      </div>
-      <div class="pnj-body">
-        <div class="pnj-title">Gardienne Eryn</div>
-        <div class="pnj-epithet">// Protectrice des Lisières · Forêt Vivante</div>
-        <div class="pnj-tags">
-          <span class="pnj-tag">Zooid mythique</span>
-          <span class="pnj-tag">Gardienne</span>
-          <span class="pnj-tag">Neutre-Bienveillante</span>
-        </div>
-        <p class="pnj-desc">Ancienne Zooid mythique dont la forme change selon les saisons. Elle protège les voyageurs qui respectent les lois de la Forêt Vivante et peut offrir refuge aux fugitifs méritants.</p>
-        <div class="pnj-divider"></div>
-        <div class="pnj-stats">
-          <div class="pnj-stat"><span class="pnj-stat-val" style="color:#34d399">S</span><span class="pnj-stat-key">Puissance</span></div>
-          <div class="pnj-stat"><span class="pnj-stat-val" style="color:#34d399">+200</span><span class="pnj-stat-key">Ans</span></div>
-          <div class="pnj-stat"><span class="pnj-stat-val" style="color:#34d399">F.V</span><span class="pnj-stat-key">Zone</span></div>
-        </div>
-      </div>
-      <div class="pnj-deco"></div>
-    </div>
-
-    <div class="pnj-card" data-cat="neutre">
-      <div class="pnj-photo" style="background:linear-gradient(135deg,#1a1600,#04060f)">
-        <div class="pnj-stripe" style="background:linear-gradient(90deg,#fbbf24,rgba(251,191,36,0.15))"></div>
-        <div class="pnj-photo-ov" style="background:linear-gradient(180deg,transparent 25%,rgba(8,13,26,0.7) 65%,var(--dark2) 100%)"></div>
-        <div class="pnj-photo-ph" style="color:#fbbf24">◉</div>
-        <div class="danger-badge" style="color:#fbbf24;border-color:rgba(251,191,36,0.5);background:rgba(251,191,36,0.1)">RANG : B</div>
-        <div class="cat-badge" style="color:#fbbf24;border-color:rgba(251,191,36,0.35);background:rgba(251,191,36,0.07)">Neutre</div>
-      </div>
-      <div class="pnj-body">
-        <div class="pnj-title">Marchand Ozrik</div>
-        <div class="pnj-epithet">// Le Passeur · Carrefour des Mondes</div>
-        <div class="pnj-tags">
-          <span class="pnj-tag">Humanoïde</span>
-          <span class="pnj-tag">Informateur</span>
-          <span class="pnj-tag">Commerçant</span>
-        </div>
-        <p class="pnj-desc">Intermédiaire légendaire qui connaît tous les chemins de Jaharta. Sa neutralité absolue est son bien le plus précieux — il vend ses services aux deux camps sans jamais prendre parti.</p>
-        <div class="pnj-divider"></div>
-        <div class="pnj-stats">
-          <div class="pnj-stat"><span class="pnj-stat-val" style="color:#fbbf24">B</span><span class="pnj-stat-key">Puissance</span></div>
-          <div class="pnj-stat"><span class="pnj-stat-val" style="color:#fbbf24">~60</span><span class="pnj-stat-key">Ans</span></div>
-          <div class="pnj-stat"><span class="pnj-stat-val" style="color:#fbbf24">?</span><span class="pnj-stat-key">Zone</span></div>
-        </div>
-      </div>
-      <div class="pnj-deco"></div>
-    </div>
-
-    <div class="pnj-card" data-cat="politique">
-      <div class="pnj-photo" style="background:linear-gradient(135deg,#0a0d1a,#04060f)">
-        <div class="pnj-stripe" style="background:linear-gradient(90deg,#60a5fa,rgba(96,165,250,0.15))"></div>
-        <div class="pnj-photo-ov" style="background:linear-gradient(180deg,transparent 25%,rgba(8,13,26,0.7) 65%,var(--dark2) 100%)"></div>
-        <div class="pnj-photo-ph" style="color:#60a5fa">★</div>
-        <div class="danger-badge" style="color:#60a5fa;border-color:rgba(96,165,250,0.5);background:rgba(96,165,250,0.1)">DANGER : S</div>
-        <div class="cat-badge" style="color:#60a5fa;border-color:rgba(96,165,250,0.35);background:rgba(96,165,250,0.07)">Politique</div>
-      </div>
-      <div class="pnj-body">
-        <div class="pnj-title">Commandante Syla Voss</div>
-        <div class="pnj-epithet">// Fer de Lance · Milice de Jaharta</div>
-        <div class="pnj-tags">
-          <span class="pnj-tag">Humanoïde</span>
-          <span class="pnj-tag">Militaire</span>
-          <span class="pnj-tag">Intransigeante</span>
-        </div>
-        <p class="pnj-desc">Cheffe des forces armées de Jaharta Centrale, Syla Voss est réputée pour son sens tactique impitoyable. Elle applique les lois du Conseil avec une rigueur absolue, sans exception.</p>
-        <div class="pnj-divider"></div>
-        <div class="pnj-stats">
-          <div class="pnj-stat"><span class="pnj-stat-val" style="color:#60a5fa">S</span><span class="pnj-stat-key">Puissance</span></div>
-          <div class="pnj-stat"><span class="pnj-stat-val" style="color:#60a5fa">42</span><span class="pnj-stat-key">Ans</span></div>
-          <div class="pnj-stat"><span class="pnj-stat-val" style="color:#60a5fa">C.J</span><span class="pnj-stat-key">Zone</span></div>
-        </div>
-      </div>
-      <div class="pnj-deco"></div>
-    </div>
-
     <div class="no-results" id="no-results" style="display:none;grid-column:1/-1;text-align:center;padding:60px;font-family:'Share Tech Mono',monospace;color:var(--muted);letter-spacing:.2em;font-size:.72rem;">◈ Aucun PNJ dans cette catégorie.</div>
+    <div id="empty-state" style="grid-column:1/-1;text-align:center;padding:70px;font-family:'Share Tech Mono',monospace;color:var(--muted);letter-spacing:.18em;font-size:.7rem;">⟳ Chargement des PNJ...</div>
+  </div>
+</div>
+
+<!-- MODAL CRÉATION PNJ (admin only) -->
+<div class="modal-overlay" id="pnj-modal">
+  <div class="modal">
+    <div class="mac"></div>
+    <button class="mclose" onclick="closePNJModal()">✕</button>
+    <div class="mi">
+      <div class="mt">◆ Créer un PNJ</div>
+      <p class="msub">Réservé aux administrateurs Jaharta. Les PNJ créés ici apparaissent immédiatement sur la page publique.</p>
+
+      <!-- IDENTITÉ -->
+      <div class="form-section">
+        <div class="form-section-title">Identité</div>
+        <div class="frow">
+          <div class="fg"><label class="fl">Nom <span class="req">*</span></label><input type="text" class="fi" id="pnj-nom" placeholder="Ex: VERATH"></div>
+          <div class="fg"><label class="fl">Prénom <span class="req">*</span></label><input type="text" class="fi" id="pnj-prenom" placeholder="Ex: Morthis"></div>
+        </div>
+        <div class="frow3">
+          <div class="fg"><label class="fl">Âge</label><input type="text" class="fi" id="pnj-age" placeholder="Ex: 800 ans"></div>
+          <div class="fg"><label class="fl">Race</label><input type="text" class="fi" id="pnj-race" placeholder="Ex: Démon ancien"></div>
+          <div class="fg"><label class="fl">Taille</label><input type="text" class="fi" id="pnj-taille" placeholder="Ex: 2m10"></div>
+        </div>
+        <div class="frow">
+          <div class="fg"><label class="fl">Rôle</label><input type="text" class="fi" id="pnj-role" placeholder="Ex: Seigneur de guerre"></div>
+          <div class="fg"><label class="fl">Statut Marital</label><input type="text" class="fi" id="pnj-marital" placeholder="Ex: Célibataire"></div>
+        </div>
+        <div class="fg"><label class="fl">Titre Spécial</label><input type="text" class="fi" id="pnj-titre" placeholder="Ex: Le Consumé · Terres Ravagées"></div>
+      </div>
+
+      <!-- CLASSIFICATION -->
+      <div class="form-section">
+        <div class="form-section-title">Classification</div>
+        <div class="frow">
+          <div class="fg"><label class="fl">Catégorie <span class="req">*</span></label>
+            <select class="fs" id="pnj-category">
+              <option value="">— Choisir —</option>
+              <option value="politique">Politique</option>
+              <option value="mystique">Mystique</option>
+              <option value="ennemi">Ennemi</option>
+              <option value="allie">Allié</option>
+              <option value="neutre">Neutre</option>
+            </select>
+          </div>
+          <div class="fg"><label class="fl">Niveau de danger</label>
+            <select class="fs" id="pnj-danger">
+              <option value="RANG : F">RANG : F</option><option value="RANG : E">RANG : E</option>
+              <option value="RANG : D">RANG : D</option><option value="RANG : C">RANG : C</option>
+              <option value="RANG : B">RANG : B</option><option value="RANG : A">RANG : A</option>
+              <option value="DANGER : S">DANGER : S</option><option value="DANGER : SS">DANGER : SS</option>
+              <option value="DANGER : SSS">DANGER : SSS</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- PHOTO -->
+      <div class="form-section">
+        <div class="form-section-title">Illustration</div>
+        <div class="fg">
+          <label class="fl">Uploader une image</label>
+          <div class="photo-drop" onclick="document.getElementById('pnj-file').click()">
+            <input type="file" id="pnj-file" accept="image/*" onchange="pnjPrevFile(event)">
+            <div class="pdtxt" id="pnj-pdtxt"><div style="font-size:1.2rem;opacity:.3;margin-bottom:3px">⬆</div>Cliquer pour uploader</div>
+          </div>
+        </div>
+        <div class="fg"><label class="fl">Ou URL d'image</label><input type="url" class="fi" id="pnj-photo-url" placeholder="https://..." oninput="pnjPrevUrl(this.value)"></div>
+      </div>
+
+      <!-- DESCRIPTION -->
+      <div class="form-section">
+        <div class="form-section-title">Description</div>
+        <div class="fg"><label class="fl">Description courte <span class="req">*</span></label><textarea class="fta" id="pnj-desc" placeholder="Résumez ce PNJ en 2-4 phrases..." style="min-height:88px"></textarea></div>
+      </div>
+
+      <!-- MOTIVATIONS -->
+      <div class="form-section">
+        <div class="form-section-title">Motivations</div>
+        <div class="mot-block">
+          <div class="fg">
+            <label class="fl mot-label social">Plan Social :</label>
+            <textarea class="fta" id="pnj-mot-social" placeholder="Objectifs sociaux, alliances, influence populaire..." style="min-height:60px"></textarea>
+          </div>
+          <div class="fg">
+            <label class="fl mot-label eco">Plan Économique :</label>
+            <textarea class="fta" id="pnj-mot-eco" placeholder="Ressources convoitées, stratégie économique, commerce..." style="min-height:60px"></textarea>
+          </div>
+          <div class="fg" style="margin-bottom:0">
+            <label class="fl mot-label mil">Plan Militaire :</label>
+            <textarea class="fta" id="pnj-mot-mil" placeholder="Stratégie militaire, armées, conquêtes, défenses..." style="min-height:60px"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <button class="bsub" id="pnj-submit-btn" onclick="submitPNJ()">◆ Créer le PNJ</button>
+    </div>
   </div>
 </div>
 
 <footer>
   <div class="fl2">JAHARTA // RP</div>
-  <div class="ft"><span class="hdot"></span>PNJ GÉRÉS PAR LES ADMINS · v4.0.0</div>
+  <div class="ft"><span class="hdot"></span>PNJ · FIREBASE POWERED · v4.0.0</div>
   <div class="fls">
     <a href="index.html">Accueil</a><a href="fiches.html">Fiches RP</a>
     <a href="portail.html">Portail</a><a href="admin.html">Admin</a>
@@ -332,7 +482,15 @@ function filterCat(cat,btn){
   document.querySelectorAll('.cat-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');
   let v=0;document.querySelectorAll('.pnj-card[data-cat]').forEach(c=>{const show=cat==='all'||c.dataset.cat===cat;c.style.display=show?'':'none';if(show)v++;});
   document.getElementById('no-results').style.display=v===0?'block':'none';
+  const empty=document.getElementById('empty-state');if(empty)empty.style.display='none';
 }
+function openPNJModal(){document.getElementById('pnj-modal').classList.add('open');document.body.style.overflow='hidden';}
+function closePNJModal(){document.getElementById('pnj-modal').classList.remove('open');document.body.style.overflow='';}
+document.getElementById('pnj-modal').addEventListener('click',e=>{if(e.target===e.currentTarget)closePNJModal();});
+function pnjPrevFile(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{showPnjPrev(ev.target.result);document.getElementById('pnj-photo-url').value='';};r.readAsDataURL(f);}
+function pnjPrevUrl(u){if(!u){clearPnjPrev();return;}showPnjPrev(u);}
+function showPnjPrev(src){document.getElementById('pnj-pdtxt').style.display='none';let img=document.querySelector('#pnj-file').parentElement.querySelector('img.prev-img');if(!img){img=document.createElement('img');img.className='prev-img';document.querySelector('.photo-drop').appendChild(img);}img.src=src;}
+function clearPnjPrev(){document.getElementById('pnj-pdtxt').style.display='';const img=document.querySelector('.photo-drop img.prev-img');if(img)img.remove();}
 </script>
 </body>
 </html>

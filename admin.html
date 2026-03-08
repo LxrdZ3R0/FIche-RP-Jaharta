@@ -38,6 +38,7 @@
       document.getElementById('admin-panel').style.display   = 'block';
       document.getElementById('admin-email').textContent = user.email;
       loadAllFiches();
+      loadPNJ();
     } else {
       document.getElementById('login-screen').style.display  = 'flex';
       document.getElementById('admin-panel').style.display   = 'none';
@@ -138,6 +139,92 @@
     await updateDoc(doc(db, "fiches", id), { status: "en_attente" });
     showToast('Fiche remise en attente.', 'success');
   };
+
+  /* ── Load PNJ (real-time) ── */
+  function loadPNJ() {
+    const q = query(collection(db, "pnj"), orderBy("createdAt", "desc"));
+    onSnapshot(q, snap => {
+      const pnjs = [];
+      snap.forEach(d => pnjs.push({id: d.id, ...d.data()}));
+      document.getElementById('cnt-pnj').textContent = pnjs.length;
+      document.getElementById('badge-pnj').textContent = pnjs.length || '';
+      document.getElementById('badge-pnj').style.display = pnjs.length ? 'inline' : 'none';
+      renderPNJTable(pnjs);
+    }, err => { console.warn("PNJ listener:", err.message); });
+  }
+
+  function renderPNJTable(pnjs) {
+    const el = document.getElementById('table-pnj');
+    if (!pnjs.length) {
+      el.innerHTML = `<div class="empty-list"><span class="empty-list-icon">◆</span>Aucun PNJ créé pour le moment.</div>`;
+      return;
+    }
+    const catColors = {politique:'#60a5fa',mystique:'#b06eff',ennemi:'#ff3030',allie:'#34d399',neutre:'#fbbf24'};
+    const catLabels = {politique:'Politique',mystique:'Mystique',ennemi:'Ennemi',allie:'Allié',neutre:'Neutre'};
+    el.innerHTML = '';
+    pnjs.forEach(p => {
+      const c = catColors[p.category] || '#00c8ff';
+      const cl = catLabels[p.category] || p.category;
+      const date = p.createdAt?.toDate ? p.createdAt.toDate().toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'}) : '–';
+      const hasMotivations = p.motivations && (p.motivations.social || p.motivations.economique || p.motivations.militaire);
+
+      const row = document.createElement('div');
+      row.className = 'fiche-row';
+      row.style.borderLeftColor = c + '55';
+
+      const thumb = document.createElement('div');
+      thumb.className = 'fiche-thumb';
+      if (p.photoUrl) {
+        const img = document.createElement('img'); img.src = p.photoUrl;
+        img.onerror = () => { thumb.innerHTML = `<div class="fiche-thumb-ph" style="background:linear-gradient(135deg,${c}18,#04060f);color:${c}">${(p.prenom||'?')[0]}</div>`; };
+        thumb.appendChild(img);
+      } else {
+        thumb.innerHTML = `<div class="fiche-thumb-ph" style="background:linear-gradient(135deg,${c}18,#04060f);color:${c}">${(p.prenom||'?')[0]}</div>`;
+      }
+      row.appendChild(thumb);
+
+      const info = document.createElement('div');
+      info.className = 'fiche-info';
+      const motHTML = hasMotivations ? `
+        <div style="margin-top:5px;font-family:'Share Tech Mono',monospace;font-size:0.56rem;color:var(--muted);line-height:1.7;">
+          ${p.motivations.social?`<div><span style="color:#60a5fa">Social :</span> ${p.motivations.social.substring(0,60)}${p.motivations.social.length>60?'…':''}</div>`:''}
+          ${p.motivations.economique?`<div><span style="color:#ffd60a">Économique :</span> ${p.motivations.economique.substring(0,60)}${p.motivations.economique.length>60?'…':''}</div>`:''}
+          ${p.motivations.militaire?`<div><span style="color:#ff3030">Militaire :</span> ${p.motivations.militaire.substring(0,60)}${p.motivations.militaire.length>60?'…':''}</div>`:''}
+        </div>` : '';
+      info.innerHTML = `
+        <div class="fiche-name">${p.prenom||''} ${p.nom||''}</div>
+        <div class="fiche-meta">
+          <span class="fiche-tag" style="color:${c};border-color:${c}44;background:${c}0e">${cl}</span>
+          ${p.race?`<span class="fiche-tag" style="color:var(--muted);border-color:rgba(90,122,144,0.3)">${p.race}</span>`:''}
+          ${p.role?`<span class="fiche-tag" style="color:var(--muted);border-color:rgba(90,122,144,0.3)">${p.role}</span>`:''}
+          <span class="fiche-tag" style="color:var(--muted);border-color:rgba(90,122,144,0.25)">${p.danger||'?'}</span>
+        </div>
+        <div class="fiche-desc">${p.desc||''}</div>
+        ${p.titre?`<div style="font-family:'Share Tech Mono',monospace;font-size:0.57rem;color:${c};margin-top:3px">// ${p.titre}</div>`:''}
+        ${motHTML}
+        <div class="fiche-date">Créé le ${date}</div>
+      `;
+      row.appendChild(info);
+
+      const actions = document.createElement('div');
+      actions.className = 'fiche-actions';
+      actions.innerHTML = `
+        <div class="fiche-actions-row">
+          <a href="pnj.html" target="_blank" class="action-btn view">↗ Voir page PNJ</a>
+          <button class="action-btn delete" onclick="deletePNJ('${p.id}')">✕ Supprimer</button>
+        </div>
+      `;
+      row.appendChild(actions);
+      el.appendChild(row);
+    });
+  }
+
+  /* ── Delete PNJ ── */
+  window.deletePNJ = async function(id) {
+    if (!confirm('Supprimer définitivement ce PNJ ?')) return;
+    await deleteDoc(doc(db, "pnj", id));
+    showToast('PNJ supprimé.', 'error');
+  };
 </script>
 
 <style>
@@ -190,11 +277,13 @@
   .stat-card[data-accent="green"]::before{background:var(--green);}
   .stat-card[data-accent="red"]::before{background:var(--red);}
   .stat-card[data-accent="muted"]::before{background:var(--muted);}
+  .stat-card[data-accent="magenta"]::before{background:var(--magenta);}
   .stat-val{font-family:'Orbitron',sans-serif;font-size:2rem;font-weight:800;line-height:1;margin-bottom:4px;}
   .stat-card[data-accent="gold"] .stat-val{color:var(--gold);text-shadow:0 0 14px rgba(255,214,10,0.4);}
   .stat-card[data-accent="green"] .stat-val{color:var(--green);text-shadow:0 0 14px rgba(0,255,136,0.4);}
   .stat-card[data-accent="red"] .stat-val{color:var(--red);text-shadow:0 0 14px rgba(255,48,48,0.4);}
   .stat-card[data-accent="muted"] .stat-val{color:var(--muted);}
+  .stat-card[data-accent="magenta"] .stat-val{color:#b06eff;text-shadow:0 0 14px rgba(176,110,255,0.4);}
   .stat-lbl{font-family:'Share Tech Mono',monospace;font-size:0.6rem;color:var(--muted);letter-spacing:0.18em;text-transform:uppercase;}
 
   /* TABS */
@@ -316,6 +405,10 @@
       <div class="stat-val" id="cnt-total">–</div>
       <div class="stat-lbl">Total</div>
     </div>
+    <div class="stat-card" data-accent="magenta">
+      <div class="stat-val" id="cnt-pnj">–</div>
+      <div class="stat-lbl">PNJ</div>
+    </div>
   </div>
 
   <!-- TABS -->
@@ -326,6 +419,10 @@
     </button>
     <button class="admin-tab" onclick="switchTab('approved', this)">Validées</button>
     <button class="admin-tab" onclick="switchTab('rejected', this)">Rejetées</button>
+    <button class="admin-tab" onclick="switchTab('pnj', this)">
+      PNJ
+      <span class="tab-badge" id="badge-pnj" style="display:none;background:#b06eff"></span>
+    </button>
   </div>
 
   <!-- TAB: PENDING -->
@@ -345,6 +442,16 @@
   <!-- TAB: REJECTED -->
   <div class="tab-content" id="tab-rejected">
     <div class="fiche-list" id="table-rejected">
+      <div class="empty-list"><span class="empty-list-icon">⟳</span>Chargement...</div>
+    </div>
+  </div>
+
+  <!-- TAB: PNJ -->
+  <div class="tab-content" id="tab-pnj">
+    <div style="display:flex;justify-content:flex-end;margin-bottom:18px;">
+      <a href="pnj.html" target="_blank" style="font-family:'Share Tech Mono',monospace;font-size:0.6rem;letter-spacing:0.14em;color:#b06eff;border:1px solid rgba(176,110,255,0.35);padding:7px 14px;text-decoration:none;transition:all 0.2s;background:transparent;" onmouseover="this.style.background='rgba(176,110,255,0.06)'" onmouseout="this.style.background='transparent'">↗ Voir page PNJ publique</a>
+    </div>
+    <div class="fiche-list" id="table-pnj">
       <div class="empty-list"><span class="empty-list-icon">⟳</span>Chargement...</div>
     </div>
   </div>
