@@ -227,7 +227,14 @@
   };
 </script>
 
+<link rel="stylesheet" href="css/jaharta.css">
 <style>
+:root {
+  --accent:        var(--gold);
+  --accent-rgb:    255,214,10;
+  --accent-border: rgba(255,214,10,0.22);
+  --accent-bg:     rgba(255,214,10,0.04);
+}
   :root {
     --cyan:#00f5ff; --magenta:#ff006e; --gold:#ffd60a;
     --dark:#04060f; --dark2:#080d1a; --dark3:#0c1220;
@@ -235,11 +242,6 @@
     --text:#c8e0f0; --muted:#5a7a90;
     --green:#00ff88; --red:#ff3030; --orange:#f97316;
   }
-  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
-  html{scroll-behavior:smooth;}
-  body{background:var(--dark);color:var(--text);font-family:'Rajdhani',sans-serif;font-size:15px;min-height:100vh;overflow-x:hidden;}
-  body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.05) 2px,rgba(0,0,0,0.05) 4px);pointer-events:none;z-index:9999;}
-  body::after{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,245,255,0.02) 1px,transparent 1px),linear-gradient(90deg,rgba(0,245,255,0.02) 1px,transparent 1px);background-size:60px 60px;pointer-events:none;z-index:0;}
 
   /* LOGIN */
   #login-screen{position:fixed;inset:0;background:var(--dark);z-index:500;display:flex;align-items:center;justify-content:center;}
@@ -349,7 +351,6 @@
   .toast.success{border-color:rgba(0,255,136,0.5);color:var(--green);}
   .toast.error{border-color:rgba(255,48,48,0.5);color:var(--red);}
 
-  ::-webkit-scrollbar{width:4px} ::-webkit-scrollbar-track{background:var(--dark)} ::-webkit-scrollbar-thumb{background:var(--border)} ::-webkit-scrollbar-thumb:hover{background:var(--gold)}
   @media(max-width:768px){.admin-stats{grid-template-columns:repeat(2,1fr)}.fiche-row{grid-template-columns:60px 1fr;}.fiche-actions{grid-column:1/-1;flex-direction:row;flex-wrap:wrap;padding:10px 14px;}.admin-tabs{overflow-x:auto;}.admin-header{padding:0 16px}}
 </style>
 </head>
