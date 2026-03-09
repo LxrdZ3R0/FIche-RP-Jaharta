@@ -136,7 +136,8 @@ footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:24
     <a href="fiches.html">◈ <span>Fiches RP</span></a>
     <a href="pnj.html">◆ <span>PNJ</span></a>
     <a href="portail.html">⬡ <span>Portail</span></a>
-    <a href="admin.html" class="nav-admin">⚙ Admin</a>
+    <a href="admin.html" class="nav-admin">⚙ Connexion</a>
+    <span class="admin-badge" id="admin-badge">ADMIN</span>
   </nav>
 </header>
 
@@ -294,6 +295,23 @@ for(let i=0;i<20;i++){
     }, 2900);
   });
 })();
+</script>
+
+<script type="module">
+/* ── Badge admin connecté (partagé toutes les pages) ── */
+import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import{getAuth,onAuthStateChanged}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+const _cfg={apiKey:"AIzaSyAru7qZX8Gu_b8Y3oNDV-a5PmkrrkRjkcs",authDomain:"jaharta-rp.firebaseapp.com",projectId:"jaharta-rp",storageBucket:"jaharta-rp.firebasestorage.app",messagingSenderId:"217075417489",appId:"1:217075417489:web:4d1e2df422a5cd42411a30"};
+try{
+  const _app=initializeApp(_cfg,'badge');
+  const _auth=getAuth(_app);
+  onAuthStateChanged(_auth,user=>{
+    const b=document.getElementById('admin-badge');
+    const l=document.querySelector('.nav-admin');
+    if(b) b.classList.toggle('visible',!!user);
+    if(l && user) l.textContent='⚙ Connecté';
+  });
+}catch(e){}
 </script>
 </body>
 </html>

@@ -25,6 +25,10 @@ window._activeFilter='all';
 
 /* ── Auth ── */
 onAuthStateChanged(auth,user=>{
+  const _b=document.getElementById("admin-badge");
+  const _l=document.querySelector(".nav-admin");
+  if(_b) _b.classList.toggle("visible",!!user);
+  if(_l && user) _l.textContent="⚙ Connecté";
   window._isAdmin=!!user;
   document.querySelectorAll('.admin-only').forEach(el=>el.style.display=user?'flex':'none');
   document.querySelectorAll('.admin-only-block').forEach(el=>el.style.display=user?'block':'none');
@@ -412,7 +416,8 @@ footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:22
     <a href="fiches.html">◈ <span>Fiches RP</span></a>
     <a href="pnj.html" class="active">◆ <span>PNJ</span></a>
     <a href="portail.html">⬡ <span>Portail</span></a>
-    <a href="admin.html" class="nav-admin">⚙ Admin</a>
+    <a href="admin.html" class="nav-admin">⚙ Connexion</a>
+    <span class="admin-badge" id="admin-badge">ADMIN</span>
   </nav>
 </header>
 
