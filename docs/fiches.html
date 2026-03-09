@@ -10,13 +10,18 @@
 
 <script type="module">
 import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import{getFirestore,collection,addDoc,getDocs,onSnapshot,query,where,orderBy,serverTimestamp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import{getFirestore,collection,addDoc,getDocs,onSnapshot,doc,getDoc,updateDoc,query,where,orderBy,serverTimestamp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import{getAuth,onAuthStateChanged}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import{getStorage,ref,uploadBytes,getDownloadURL}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 const firebaseConfig={apiKey:"AIzaSyAru7qZX8Gu_b8Y3oNDV-a5PmkrrkRjkcs",authDomain:"jaharta-rp.firebaseapp.com",projectId:"jaharta-rp",storageBucket:"jaharta-rp.firebasestorage.app",messagingSenderId:"217075417489",appId:"1:217075417489:web:4d1e2df422a5cd42411a30",measurementId:"G-15JSSBZWCH"};
 const app=initializeApp(firebaseConfig);const db=getFirestore(app);const storage=getStorage(app);
 const auth=getAuth(app);
+window._db=db;window._storage=storage;
+window._doc=doc;window._getDoc=getDoc;window._updateDoc=updateDoc;
+window._ref=ref;window._uploadBytes=uploadBytes;window._getDownloadURL=getDownloadURL;
+window._isAdmin=false;
 onAuthStateChanged(auth,user=>{
+  window._isAdmin=!!user;
   const b=document.getElementById('admin-badge');
   const l=document.querySelector('.nav-admin');
   if(b) b.classList.toggle('visible',!!user);
@@ -167,6 +172,9 @@ loadCards();
 .lbtn{font-family:'Share Tech Mono',monospace;font-size:.54rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);text-decoration:none;border:1px solid var(--border);padding:5px 11px;transition:all .2s;display:flex;align-items:center;gap:5px;background:transparent;cursor:pointer;}
 .lbtn:hover{color:var(--cyan);border-color:var(--cyan);background:rgba(0,245,255,0.04);}
 .lbtn svg{width:9px;height:9px;flex-shrink:0;}
+.card-admin-row{display:flex;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);}
+.card-edit-btn{font-family:'Share Tech Mono',monospace;font-size:.6rem;letter-spacing:.1em;background:rgba(0,245,255,.08);border:1px solid rgba(0,245,255,.3);color:var(--cyan);padding:6px 14px;cursor:pointer;transition:all .2s;flex:1;}
+.card-edit-btn:hover{background:rgba(0,245,255,.18);border-color:var(--cyan);}
 .cdeco{position:absolute;bottom:0;right:0;width:22px;height:22px;border-top:1px solid var(--border);border-left:1px solid var(--border);pointer-events:none;z-index:2;}
 .no-results{display:none;grid-column:1/-1;text-align:center;padding:70px 20px;font-family:'Share Tech Mono',monospace;color:var(--muted);letter-spacing:.2em;font-size:.75rem;}
 .empty-st{grid-column:1/-1;text-align:center;padding:70px 20px;font-family:'Share Tech Mono',monospace;color:var(--muted);letter-spacing:.16em;font-size:.72rem;}
@@ -470,8 +478,86 @@ function buildCard(ch){
   // Bouton vers fichier uploadé si présent
   if(ch.ficheFileUrl){const a=document.createElement('a');a.className='lbtn';a.href=ch.ficheFileUrl;a.target='_blank';a.title=ch.ficheFileName||'Fiche';a.innerHTML=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Télécharger`;links.appendChild(a);}
   body.appendChild(links);
+  // Admin edit button
+  if(ch.id){
+    const adminRow=document.createElement('div');adminRow.className='card-admin-row';adminRow.style.display=window._isAdmin?'flex':'none';
+    const editBtn=document.createElement('button');editBtn.className='card-edit-btn';editBtn.textContent='✎ Modifier';editBtn.onclick=()=>openEditFiche(ch.id);
+    adminRow.appendChild(editBtn);body.appendChild(adminRow);
+  }
   card.appendChild(body);const deco=document.createElement('div');deco.className='cdeco';card.appendChild(deco);return card;
 }
+
+/* ── Edit fiche (admin) ── */
+window.openEditFiche = async function(id){
+  if(!window._isAdmin){ alert('Connexion admin requise'); return; }
+  const snap = await window._getDoc(window._doc(window._db,'fiches',id));
+  if(!snap.exists()) return;
+  const ch = snap.data();
+
+  // Populate modal fields with correct IDs
+  document.getElementById('f-fn').value         = ch.firstname  || '';
+  document.getElementById('f-ln').value         = ch.lastname   || '';
+  document.getElementById('f-race').value       = ch.race       || '';
+  document.getElementById('f-rank').value       = ch.rank       || 'F';
+  document.getElementById('f-bio').value        = ch.desc||ch.bio||'';
+  document.getElementById('f-photo-url').value  = ch.photoUrl   || '';
+  document.getElementById('f-link').value       = (ch.links?.[0]?.h||ch.linkUrl||'');
+  if(ch.photoUrl) prevUrl(ch.photoUrl);
+
+  // Race specific
+  if(window.updateRaceSpecific) updateRaceSpecific(ch.race);
+  setTimeout(()=>{
+    const rs=document.getElementById('f-race-specific');
+    if(rs){rs.disabled=false;rs.value=ch.raceSpecific||'';}
+  },120);
+
+  // Change modal title + submit button to edit mode
+  const mt=document.querySelector('#modal .mt');
+  if(mt) mt.textContent='// Modifier la fiche';
+  const btn=document.getElementById('bsub');
+  const origText=btn.textContent;
+  const origClick=btn.onclick;
+  btn.textContent='✎ Mettre à jour';
+  btn.onclick=async function(){
+    if(btn.disabled) return;
+    btn.disabled=true; btn.textContent='⟳ Mise à jour...';
+    const firstname = document.getElementById('f-fn').value.trim();
+    const lastname  = document.getElementById('f-ln').value.trim();
+    const race      = document.getElementById('f-race').value;
+    const raceSpecific = document.getElementById('f-race-specific')?.value||'';
+    const rank      = document.getElementById('f-rank').value;
+    const desc      = document.getElementById('f-bio').value.trim();
+    const photoUrl  = document.getElementById('f-photo-url').value.trim();
+    const linkUrl   = document.getElementById('f-link').value.trim();
+    const links     = linkUrl?[{t:'Fiche',h:linkUrl}]:ch.links||[];
+
+    let finalPhoto = photoUrl;
+    const photoFile = document.getElementById('f-file')?.files[0];
+    if(photoFile){
+      try{
+        const r2=window._ref(window._storage,`photos/${Date.now()}_${photoFile.name}`);
+        const s2=await window._uploadBytes(r2,photoFile);
+        finalPhoto=await window._getDownloadURL(s2.ref);
+      }catch(e){console.warn('Photo:',e.message);}
+    }
+
+    try{
+      await window._updateDoc(window._doc(window._db,'fiches',id),{
+        firstname,lastname,race,raceSpecific,rank,desc,links,
+        photoUrl:finalPhoto,updatedAt:new Date()
+      });
+      closeModal();
+      showToast('✓ Fiche mise à jour !');
+    }catch(e){
+      console.error(e);
+      showToast('⚠ '+e.message,'error');
+    }
+    // Reset modal to create mode
+    btn.disabled=false; btn.textContent=origText; btn.onclick=origClick;
+    if(mt) mt.textContent='// Soumettre un Personnage';
+  };
+  openModal();
+};
 
 function animateCount(target){const el=document.getElementById('count-chars');let n=0;const iv=setInterval(()=>{n++;el.textContent=n;if(n>=target)clearInterval(iv);},80);}
 function updateCounts(){const cards=document.querySelectorAll('.rp-card[data-race]');const t={};cards.forEach(c=>{t[c.dataset.race]=(t[c.dataset.race]||0)+1;});let all=0;Object.keys(t).forEach(r=>{const el=document.getElementById('cnt-'+r);if(el)el.textContent=t[r];all+=t[r];});document.getElementById('cnt-all').textContent=all;}
