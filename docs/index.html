@@ -136,8 +136,8 @@ footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:24
     <a href="fiches.html">◈ <span>Fiches RP</span></a>
     <a href="pnj.html">◆ <span>PNJ</span></a>
     <a href="portail.html">⬡ <span>Portail</span></a>
+    <a href="admin.html" class="admin-badge" id="admin-badge">ADMIN</a>
     <a href="admin.html" class="nav-admin">⚙ Connexion</a>
-    <span class="admin-badge" id="admin-badge">ADMIN</span>
   </nav>
 </header>
 
@@ -309,7 +309,19 @@ try{
     const b=document.getElementById('admin-badge');
     const l=document.querySelector('.nav-admin');
     if(b) b.classList.toggle('visible',!!user);
-    if(l && user) l.textContent='⚙ Connecté';
+    if(l){
+      if(user){
+        l.textContent='⚙ Connecté';
+        l.removeAttribute('href');
+        l.style.cursor='default';
+        l.style.opacity='0.55';
+      } else {
+        l.textContent='⚙ Connexion';
+        l.setAttribute('href','admin.html');
+        l.style.cursor='';
+        l.style.opacity='';
+      }
+    }
   });
 }catch(e){}
 </script>

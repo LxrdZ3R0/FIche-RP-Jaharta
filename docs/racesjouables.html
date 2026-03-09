@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JAHARTA // Races Jouables</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Rajdhani:wght@400;600;700&family=Share+Tech+Mono&display=swap">
+<link rel="stylesheet" href="css/jaharta.css">
+<style>
+:root {
+  --accent:        var(--gold);
+  --accent-rgb:    255,214,10;
+  --accent-border: rgba(255,214,10,0.22);
+  --accent-bg:     rgba(255,214,10,0.04);
+  --accent-grid:   rgba(255,214,10,0.015);
+}
+
+/* PAGE HERO */
+.page-hero{position:relative;z-index:1;padding:52px 44px 36px;border-bottom:1px solid var(--border);}
+.ph-tag{font-family:'Share Tech Mono',monospace;font-size:.6rem;color:var(--gold);letter-spacing:.22em;text-transform:uppercase;margin-bottom:12px;}
+.ph-title{font-family:'Orbitron',sans-serif;font-weight:900;font-size:clamp(2rem,5vw,3.2rem);color:#fff;letter-spacing:.06em;line-height:1;}
+.ph-title span{color:var(--gold);text-shadow:0 0 22px var(--gold);}
+.ph-sub{font-family:'Share Tech Mono',monospace;font-size:.62rem;color:var(--muted);letter-spacing:.15em;margin-top:10px;}
+
+/* PAGE WRAP */
+.page-wrap{position:relative;z-index:1;padding:48px 44px;max-width:1300px;margin:0 auto;}
+
+/* GROUP SECTION */
+.race-group{margin-bottom:56px;}
+.group-header{display:flex;align-items:center;gap:14px;margin-bottom:22px;padding-bottom:14px;border-bottom:1px solid var(--border);}
+.group-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.group-title{font-family:'Orbitron',sans-serif;font-weight:700;font-size:1rem;letter-spacing:.18em;text-transform:uppercase;}
+.group-count{font-family:'Share Tech Mono',monospace;font-size:.58rem;color:var(--muted);letter-spacing:.1em;margin-left:auto;}
+
+/* RACE GRID */
+.race-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;}
+.race-card{
+  background:var(--panel);
+  border:1px solid var(--border);
+  padding:14px 16px;
+  position:relative;
+  clip-path:polygon(8px 0%,100% 0%,100% calc(100% - 8px),calc(100% - 8px) 100%,0% 100%,0% 8px);
+  transition:all .2s;
+  cursor:default;
+}
+.race-card::before{
+  content:'';position:absolute;left:0;top:0;width:3px;height:100%;
+  background:var(--rc, var(--cyan));
+  opacity:.6;transition:opacity .2s;
+}
+.race-card:hover{border-color:var(--rc,var(--cyan));background:rgba(255,255,255,.025);transform:translateY(-2px);}
+.race-card:hover::before{opacity:1;}
+.race-name{font-family:'Orbitron',sans-serif;font-weight:700;font-size:.72rem;letter-spacing:.12em;color:#fff;display:block;}
+.race-id{font-family:'Share Tech Mono',monospace;font-size:.52rem;color:var(--muted);margin-top:3px;}
+
+footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:22px 44px;display:flex;align-items:center;justify-content:space-between;margin-top:20px;}
+.f-logo{font-family:'Orbitron',sans-serif;font-size:.7rem;font-weight:700;color:var(--muted);letter-spacing:.22em;}
+.f-links{display:flex;gap:20px;}
+.f-links a{font-family:'Share Tech Mono',monospace;font-size:.58rem;color:var(--muted);text-decoration:none;letter-spacing:.1em;transition:color .2s;}
+.f-links a:hover{color:var(--gold);}
+@media(max-width:880px){header{padding:0 16px}nav a span{display:none}.page-hero,.page-wrap{padding:32px 16px}.race-grid{grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}footer{flex-direction:column;gap:10px;text-align:center;padding:20px 16px}}
+</style>
+</head>
+<body>
+
+<header>
+  <a href="index.html" class="logo">JAHARTA <span class="logo-slash">//</span> RP<span class="logo-sub">UNIVERS JAHARTA · ROLEPLAY OFFICIEL</span></a>
+  <nav>
+    <a href="index.html">⌂ <span>Accueil</span></a>
+    <a href="fiches.html">◈ <span>Fiches RP</span></a>
+    <a href="pnj.html">◆ <span>PNJ</span></a>
+    <a href="portail.html">⬡ <span>Portail</span></a>
+    <a href="racesjouables.html" class="active">◈ <span>Races</span></a>
+    <a href="admin.html" class="admin-badge" id="admin-badge">ADMIN</a>
+    <a href="admin.html" class="nav-admin">⚙ Connexion</a>
+  </nav>
+</header>
+
+<div class="page-hero">
+  <p class="ph-tag">▸ ENCYCLOPÉDIE · RACES JOUABLES · JAHARTA</p>
+  <h1 class="ph-title">Races <span>Jouables</span></h1>
+  <p class="ph-sub">42 races réparties en 7 groupes — choisissez votre identité dans l'univers Jaharta</p>
+</div>
+
+<div class="page-wrap">
+
+  <!-- HUMANOIDS -->
+  <div class="race-group">
+    <div class="group-header">
+      <div class="group-dot" style="background:#00c8ff;box-shadow:0 0 8px #00c8ff"></div>
+      <span class="group-title" style="color:#00c8ff">Humanoids</span>
+      <span class="group-count">6 races · Groupe Standard</span>
+    </div>
+    <div class="race-grid">
+      <div class="race-card" style="--rc:#00c8ff"><span class="race-name">Human</span><span class="race-id">#01</span></div>
+      <div class="race-card" style="--rc:#00c8ff"><span class="race-name">Elf</span><span class="race-id">#02</span></div>
+      <div class="race-card" style="--rc:#00c8ff"><span class="race-name">Vampire</span><span class="race-id">#03</span></div>
+      <div class="race-card" style="--rc:#00c8ff"><span class="race-name">Dwarf</span><span class="race-id">#04</span></div>
+      <div class="race-card" style="--rc:#00c8ff"><span class="race-name">Orc</span><span class="race-id">#05</span></div>
+      <div class="race-card" style="--rc:#00c8ff"><span class="race-name">Oni</span><span class="race-id">#06</span></div>
+    </div>
+  </div>
+
+  <!-- ZOOIDS -->
+  <div class="race-group">
+    <div class="group-header">
+      <div class="group-dot" style="background:#44ff88;box-shadow:0 0 8px #44ff88"></div>
+      <span class="group-title" style="color:#44ff88">Zooids</span>
+      <span class="group-count">13 races · Hybrides animaux</span>
+    </div>
+    <div class="race-grid">
+      <div class="race-card" style="--rc:#44ff88"><span class="race-name">Neko</span><span class="race-id">#10</span></div>
+      <div class="race-card" style="--rc:#44ff88"><span class="race-name">Doggo</span><span class="race-id">#11</span></div>
+      <div class="race-card" style="--rc:#44ff88"><span class="race-name">Bunny</span><span class="race-id">#12</span></div>
+      <div class="race-card" style="--rc:#44ff88"><span class="race-name">Draph</span><span class="race-id">#13</span></div>
+      <div class="race-card" style="--rc:#44ff88"><span class="race-name">Lamia</span><span class="race-id">#14</span></div>
+      <div class="race-card" style="--rc:#44ff88"><span class="race-name">Cowie</span><span class="race-id">#15</span></div>
+      <div class="race-card" style="--rc:#44ff88"><span class="race-name">Kakuen</span><span class="race-id">#16</span></div>
+      <div class="race-card" style="--rc:#44ff88"><span class="race-name">Dormouse</span><span class="race-id">#17</span></div>
+      <div class="race-card" style="--rc:#44ff88"><span class="race-name">Jinko</span><span class="race-id">#18</span></div>
+      <div class="race-card" style="--rc:#44ff88"><span class="race-name">Gyoubu</span><span class="race-id">#19</span></div>
+      <div class="race-card" style="--rc:#44ff88"><span class="race-name">Xiongmao</span><span class="race-id">#20</span></div>
+      <div class="race-card" style="--rc:#44ff88"><span class="race-name">Siren</span><span class="race-id">#21</span></div>
+      <div class="race-card" style="--rc:#44ff88"><span class="race-name">Moth</span><span class="race-id">#22</span></div>
+    </div>
+  </div>
+
+  <!-- MYTHICAL ZOOIDS -->
+  <div class="race-group">
+    <div class="group-header">
+      <div class="group-dot" style="background:#b06eff;box-shadow:0 0 8px #b06eff"></div>
+      <span class="group-title" style="color:#b06eff">Mythical Zooids</span>
+      <span class="group-count">11 races · Hybrides mythiques</span>
+    </div>
+    <div class="race-grid">
+      <div class="race-card" style="--rc:#b06eff"><span class="race-name">Qilin</span><span class="race-id">#23</span></div>
+      <div class="race-card" style="--rc:#b06eff"><span class="race-name">Dragon</span><span class="race-id">#24</span></div>
+      <div class="race-card" style="--rc:#b06eff"><span class="race-name">Minotaur</span><span class="race-id">#25</span></div>
+      <div class="race-card" style="--rc:#b06eff"><span class="race-name">Hellhound</span><span class="race-id">#26</span></div>
+      <div class="race-card" style="--rc:#b06eff"><span class="race-name">Sphynx</span><span class="race-id">#27</span></div>
+      <div class="race-card" style="--rc:#b06eff"><span class="race-name">Phoenix</span><span class="race-id">#28</span></div>
+      <div class="race-card" style="--rc:#b06eff"><span class="race-name">Fenrir</span><span class="race-id">#29</span></div>
+      <div class="race-card" style="--rc:#b06eff"><span class="race-name">Unicorn</span><span class="race-id">#30</span></div>
+      <div class="race-card" style="--rc:#b06eff"><span class="race-name">Kitsune</span><span class="race-id">#31</span></div>
+      <div class="race-card" style="--rc:#b06eff"><span class="race-name">Salamander</span><span class="race-id">#32</span></div>
+      <div class="race-card" style="--rc:#b06eff"><span class="race-name">Hakutaku</span><span class="race-id">#33</span></div>
+    </div>
+  </div>
+
+  <!-- DEMONS -->
+  <div class="race-group">
+    <div class="group-header">
+      <div class="group-dot" style="background:#ff3030;box-shadow:0 0 8px #ff3030"></div>
+      <span class="group-title" style="color:#ff3030">Demons</span>
+      <span class="group-count">3 races · Créatures infernales</span>
+    </div>
+    <div class="race-grid">
+      <div class="race-card" style="--rc:#ff3030"><span class="race-name">Tiefling</span><span class="race-id">#34</span></div>
+      <div class="race-card" style="--rc:#ff3030"><span class="race-name">Succubus</span><span class="race-id">#35</span></div>
+      <div class="race-card" style="--rc:#ff3030"><span class="race-name">Devil</span><span class="race-id">#36</span></div>
+    </div>
+  </div>
+
+  <!-- ARTIFICIAL -->
+  <div class="race-group">
+    <div class="group-header">
+      <div class="group-dot" style="background:#ffd60a;box-shadow:0 0 8px #ffd60a"></div>
+      <span class="group-title" style="color:#ffd60a">Artificial</span>
+      <span class="group-count">2 races · Entités construites</span>
+    </div>
+    <div class="race-grid">
+      <div class="race-card" style="--rc:#ffd60a"><span class="race-name">Android</span><span class="race-id">#37</span></div>
+      <div class="race-card" style="--rc:#ffd60a"><span class="race-name">Shuma</span><span class="race-id">#38</span></div>
+    </div>
+  </div>
+
+  <!-- SEMI-LIQUID -->
+  <div class="race-group">
+    <div class="group-header">
+      <div class="group-dot" style="background:#00e5cc;box-shadow:0 0 8px #00e5cc"></div>
+      <span class="group-title" style="color:#00e5cc">Semi-Liquid</span>
+      <span class="group-count">2 races · Formes semi-liquides</span>
+    </div>
+    <div class="race-grid">
+      <div class="race-card" style="--rc:#00e5cc"><span class="race-name">Slime</span><span class="race-id">#39</span></div>
+      <div class="race-card" style="--rc:#00e5cc"><span class="race-name">Nureonago</span><span class="race-id">#40</span></div>
+    </div>
+  </div>
+
+  <!-- UNDEAD -->
+  <div class="race-group">
+    <div class="group-header">
+      <div class="group-dot" style="background:#9a8cff;box-shadow:0 0 8px #9a8cff"></div>
+      <span class="group-title" style="color:#9a8cff">Undead</span>
+      <span class="group-count">2 races · Morts-vivants</span>
+    </div>
+    <div class="race-grid">
+      <div class="race-card" style="--rc:#9a8cff"><span class="race-name">Jiangshi</span><span class="race-id">#41</span></div>
+      <div class="race-card" style="--rc:#9a8cff"><span class="race-name">Joker</span><span class="race-id">#42</span></div>
+    </div>
+  </div>
+
+</div><!-- /page-wrap -->
+
+<footer>
+  <div class="f-logo">JAHARTA // RP</div>
+  <div class="f-links">
+    <a href="index.html">Accueil</a>
+    <a href="fiches.html">Fiches</a>
+    <a href="pnj.html">PNJ</a>
+    <a href="portail.html">Portail</a>
+  </div>
+</footer>
+
+<script type="module">
+import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import{getAuth,onAuthStateChanged}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+const _cfg={apiKey:"AIzaSyAru7qZX8Gu_b8Y3oNDV-a5PmkrrkRjkcs",authDomain:"jaharta-rp.firebaseapp.com",projectId:"jaharta-rp",storageBucket:"jaharta-rp.firebasestorage.app",messagingSenderId:"217075417489",appId:"1:217075417489:web:4d1e2df422a5cd42411a30"};
+try{
+  const _app=initializeApp(_cfg,'badge');
+  const _auth=getAuth(_app);
+  onAuthStateChanged(_auth,user=>{
+    const b=document.getElementById('admin-badge');
+    const l=document.querySelector('.nav-admin');
+    if(b) b.classList.toggle('visible',!!user);
+    if(l){
+      if(user){l.textContent='⚙ Connecté';l.removeAttribute('href');l.style.cursor='default';l.style.opacity='0.55';}
+      else{l.textContent='⚙ Connexion';l.setAttribute('href','admin.html');l.style.cursor='';l.style.opacity='';}
+    }
+  });
+}catch(e){}
+</script>
+</body>
+</html>

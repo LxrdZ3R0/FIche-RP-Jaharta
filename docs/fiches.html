@@ -19,7 +19,7 @@ onAuthStateChanged(auth,user=>{
   const b=document.getElementById('admin-badge');
   const l=document.querySelector('.nav-admin');
   if(b) b.classList.toggle('visible',!!user);
-  if(l && user) l.textContent='⚙ Connecté';
+  if(l){if(user){l.textContent='⚙ Connecté';l.removeAttribute('href');l.style.cursor='default';l.style.opacity='0.55';}else{l.textContent='⚙ Connexion';l.setAttribute('href','admin.html');l.style.cursor='';l.style.opacity='';}}
 });
 async function loadCards(){
   try{
@@ -220,8 +220,8 @@ footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:22
     <a href="fiches.html" class="active">◈ <span>Fiches RP</span></a>
     <a href="pnj.html">◆ <span>PNJ</span></a>
     <a href="portail.html">⬡ <span>Portail</span></a>
+    <a href="admin.html" class="admin-badge" id="admin-badge">ADMIN</a>
     <a href="admin.html" class="nav-admin">⚙ Connexion</a>
-    <span class="admin-badge" id="admin-badge">ADMIN</span>
   </nav>
 </header>
 
@@ -290,12 +290,17 @@ footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:22
       </div>
       <div class="frow">
         <div class="fg"><label class="fl">Groupe de Race *</label>
-          <select class="fs" id="f-race">
+          <select class="fs" id="f-race" onchange="updateRaceSpecific(this.value)">
             <option value="">— Choisir —</option>
             <option value="humanoid">Humanoid</option><option value="zooid">Zooid</option>
             <option value="mythzooid">Mythical Zooid</option><option value="demon">Demon</option>
             <option value="artificial">Artificial</option><option value="semiliquid">Semi-Liquid</option>
             <option value="undead">Undead</option>
+          </select>
+        </div>
+        <div class="fg"><label class="fl">Race spécifique *</label>
+          <select class="fs" id="f-race-specific" disabled>
+            <option value="">— Choisir d'abord un groupe —</option>
           </select>
         </div>
         <div class="fg"><label class="fl">Rang *</label>
@@ -364,6 +369,29 @@ footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:22
 </footer>
 
 <script>
+
+/* ── Races spécifiques par groupe ── */
+const RACES_SPECIFIC = {
+  humanoid:  ['Human','Elf','Vampire','Dwarf','Orc','Oni'],
+  zooid:     ['Neko','Doggo','Bunny','Draph','Lamia','Cowie','Kakuen','Dormouse','Jinko','Gyoubu','Xiongmao','Siren','Moth'],
+  mythzooid: ['Qilin','Dragon','Minotaur','Hellhound','Sphynx','Phoenix','Fenrir','Unicorn','Kitsune','Salamander','Hakutaku'],
+  demon:     ['Tiefling','Succubus','Devil'],
+  artificial:['Android','Shuma'],
+  semiliquid:['Slime','Nureonago'],
+  undead:    ['Jiangshi','Joker'],
+};
+window.updateRaceSpecific = function(group){
+  const sel = document.getElementById('f-race-specific');
+  sel.innerHTML = '';
+  if(!group){ sel.disabled=true; sel.innerHTML='<option value="">— Choisir d\'abord un groupe —</option>'; return; }
+  sel.disabled = false;
+  sel.innerHTML = '<option value="">— Choisir une race —</option>';
+  (RACES_SPECIFIC[group]||[]).forEach(r=>{
+    const o=document.createElement('option');
+    o.value=r; o.textContent=r;
+    sel.appendChild(o);
+  });
+};
 const RACES={humanoid:{color:'#00c8ff',label:'Humanoid'},zooid:{color:'#44ff88',label:'Zooid'},mythzooid:{color:'#b06eff',label:'Mythical Zooid'},demon:{color:'#ff3030',label:'Demon'},artificial:{color:'#ffd60a',label:'Artificial'},semiliquid:{color:'#00e5cc',label:'Semi-Liquid'},undead:{color:'#9a8cff',label:'Undead'}};
 const RANKS={F:{color:'#6b7280',bg:'rgba(107,114,128,0.22)',level:1},E:{color:'#9ca3af',bg:'rgba(156,163,175,0.18)',level:2},D:{color:'#60a5fa',bg:'rgba(96,165,250,0.18)',level:3},C:{color:'#34d399',bg:'rgba(52,211,153,0.18)',level:4},B:{color:'#fbbf24',bg:'rgba(251,191,36,0.18)',level:5},A:{color:'#f97316',bg:'rgba(249,115,22,0.2)',level:6},S:{color:'#ef4444',bg:'rgba(239,68,68,0.2)',level:7},SS:{color:'#ff006e',bg:'rgba(255,0,110,0.2)',level:8},SSS:{color:'#ffd60a',bg:'rgba(255,214,10,0.16)',level:9},X:{color:'#e040fb',bg:'rgba(224,64,251,0.18)',level:10},Z:{color:'#ffffff',bg:'rgba(255,255,255,0.1)',level:11}};
 
@@ -462,6 +490,7 @@ async function submitCard(){
   const fn=document.getElementById('f-fn').value.trim();
   const ln=document.getElementById('f-ln').value.trim();
   const race=document.getElementById('f-race').value;
+  const raceSpecific=document.getElementById('f-race-specific').value;
   const rank=document.getElementById('f-rank').value;
   const bio=document.getElementById('f-bio').value.trim();
   const linkUrl=document.getElementById('f-link').value.trim();
@@ -498,6 +527,7 @@ async function submitCard(){
   // Reset complet
   ['f-fn','f-ln','f-bio','f-link','f-discord','f-photo-url'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('f-race').value='';
+  updateRaceSpecific('');
   document.getElementById('f-rank').value='';
   photoFile=null;ficheFile=null;
   clearPrev();

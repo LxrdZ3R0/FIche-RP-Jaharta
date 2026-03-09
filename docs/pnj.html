@@ -28,7 +28,7 @@ onAuthStateChanged(auth,user=>{
   const _b=document.getElementById("admin-badge");
   const _l=document.querySelector(".nav-admin");
   if(_b) _b.classList.toggle("visible",!!user);
-  if(_l && user) _l.textContent="⚙ Connecté";
+  if(_l){if(user){_l.textContent="⚙ Connecté";_l.removeAttribute("href");_l.style.cursor="default";_l.style.opacity="0.55";}else{_l.textContent="⚙ Connexion";_l.setAttribute("href","admin.html");_l.style.cursor="";_l.style.opacity="";}}
   window._isAdmin=!!user;
   document.querySelectorAll('.admin-only').forEach(el=>el.style.display=user?'flex':'none');
   document.querySelectorAll('.admin-only-block').forEach(el=>el.style.display=user?'block':'none');
@@ -283,7 +283,7 @@ function showToast(msg,type='success'){const t=document.getElementById('toast');
 }
 
 /* ADMIN ONLY */
-.admin-only{display:none!important;}
+.admin-only{display:none;}
 .admin-only-block{display:none;}
 
 /* PAGE HERO */
@@ -297,9 +297,10 @@ function showToast(msg,type='success'){const t=document.getElementById('toast');
 .ph-sub{font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:var(--muted);letter-spacing:0.15em;margin-top:10px;line-height:1.7;}
 
 /* BIG ADD BUTTON */
-.big-add-btn{font-family:'Orbitron',sans-serif;font-weight:800;font-size:.72rem;letter-spacing:.22em;text-transform:uppercase;color:var(--dark);background:var(--magenta);border:none;padding:16px 28px;clip-path:polygon(12px 0%,100% 0%,calc(100% - 12px) 100%,0% 100%);cursor:pointer;transition:background .2s,box-shadow .2s;display:none!important;align-items:center;gap:10px;white-space:nowrap;flex-shrink:0;}
+.big-add-btn{font-family:'Orbitron',sans-serif;font-weight:800;font-size:.72rem;letter-spacing:.22em;text-transform:uppercase;color:var(--dark);background:var(--magenta);border:none;padding:16px 28px;clip-path:polygon(12px 0%,100% 0%,calc(100% - 12px) 100%,0% 100%);cursor:pointer;transition:background .2s,box-shadow .2s;display:none;align-items:center;gap:10px;white-space:nowrap;flex-shrink:0;}
 .big-add-btn::before{content:'◆';margin-right:4px;font-size:.7rem;}
 .big-add-btn:hover{background:#fff;box-shadow:0 0 30px var(--magenta),0 0 60px rgba(255,0,110,0.25);}
+.big-add-btn.admin-shown{display:flex!important;}
 
 /* PAGE WRAP */
 .page-wrap{position:relative;z-index:1;padding:48px 44px;max-width:1380px;margin:0 auto;}
@@ -416,8 +417,8 @@ footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:22
     <a href="fiches.html">◈ <span>Fiches RP</span></a>
     <a href="pnj.html" class="active">◆ <span>PNJ</span></a>
     <a href="portail.html">⬡ <span>Portail</span></a>
+    <a href="admin.html" class="admin-badge" id="admin-badge">ADMIN</a>
     <a href="admin.html" class="nav-admin">⚙ Connexion</a>
-    <span class="admin-badge" id="admin-badge">ADMIN</span>
   </nav>
 </header>
 
