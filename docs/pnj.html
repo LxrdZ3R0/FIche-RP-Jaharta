@@ -34,6 +34,7 @@ onAuthStateChanged(auth,user=>{
   if(_l){if(user){_l.textContent="⚙ Connecté";_l.removeAttribute("href");_l.style.cursor="default";_l.style.opacity="0.55";}else{_l.textContent="⚙ Connexion";_l.setAttribute("href","admin.html");_l.style.cursor="";_l.style.opacity="";}}
   window._isAdmin=!!user;
   document.querySelectorAll('.admin-only').forEach(el=>el.style.display=user?'flex':'none');
+  document.querySelectorAll('.admin-actions').forEach(el=>el.style.display=user?'flex':'none');
   document.querySelectorAll('.admin-only-block').forEach(el=>el.style.display=user?'block':'none');
   // Re-render filter bar to show/hide admin controls (+ Filtre, ✕ delete)
   if(typeof renderFilterBar==='function') renderFilterBar();
@@ -42,6 +43,25 @@ onAuthStateChanged(auth,user=>{
 });
 
 /* ── Load filters from Firestore ── */
+
+/* ── Seed default filters if none exist ── */
+async function seedDefaultFilters(){
+  const snap = await getDocs(collection(db,'pnj_filters'));
+  if(snap.size > 0) return; // already seeded
+  const defaults = [
+    {label:'Politicien',  color:'#ffd60a', order:0},
+    {label:'Guerrier',    color:'#ff3030', order:1},
+    {label:'Marchand',    color:'#00e5cc', order:2},
+    {label:'Mage',        color:'#b06eff', order:3},
+    {label:'Criminel',    color:'#ff006e', order:4},
+    {label:'Noble',       color:'#60a5fa', order:5},
+    {label:'Religieux',   color:'#f97316', order:6},
+  ];
+  for(const f of defaults){
+    await addDoc(collection(db,'pnj_filters'),{...f, createdAt:serverTimestamp()});
+  }
+}
+
 async function loadFilters(){
   try{
     const snap=await getDocs(query(collection(db,'pnj_filters'),orderBy('createdAt','asc')));
@@ -154,7 +174,7 @@ function buildPNJCard(p){
   const filterObj=window._filters.find(f=>f.id===p.category);
   const c=filterObj?filterObj.color:'#b06eff';
   const cl=filterObj?filterObj.label:(p.category||'?');
-  const hasMotivations=p.motivations&&(p.motivations.social||p.motivations.economique||p.motivations.militaire);
+  const hasMotivations=p.motivations&&(p.motivations.desc||p.motivations.social||p.motivations.economique||p.motivations.militaire);
 
   const card=document.createElement('div');
   card.className='pnj-card';
@@ -162,18 +182,24 @@ function buildPNJCard(p){
   card.dataset.id=p.id||'';
 
   const photoHTML=p.photoUrl
-    ?`<img src="${p.photoUrl}" alt="${p.prenom||''}" onerror="this.remove()">`
+    ?`<img src="${p.photoUrl}" alt="${p.prenom||''}" onerror="this.style.display='none';this.nextElementSibling&&(this.nextElementSibling.style.display='flex')">`
+    + `<div class="pnj-photo-ph" style="color:${c};display:none">${(p.prenom||'?')[0]}</div>`
     :`<div class="pnj-photo-ph" style="color:${c}">${(p.prenom||'?')[0]}</div>`;
 
   const motivHTML=hasMotivations?`
     <div class="pnj-divider"></div>
     <div class="pnj-mot-title">Motivations</div>
+    ${p.motivations.desc?`<div class="pnj-mot-desc">${p.motivations.desc}</div>`:''}
     ${p.motivations.social?`<div class="pnj-mot-item"><span class="pnj-mot-lbl" style="color:#60a5fa">Plan Social :</span> <span>${p.motivations.social}</span></div>`:''}
     ${p.motivations.economique?`<div class="pnj-mot-item"><span class="pnj-mot-lbl" style="color:#ffd60a">Plan Économique :</span> <span>${p.motivations.economique}</span></div>`:''}
     ${p.motivations.militaire?`<div class="pnj-mot-item"><span class="pnj-mot-lbl" style="color:#ff3030">Plan Militaire :</span> <span>${p.motivations.militaire}</span></div>`:''}
   `:'';
 
-  const adminDel=p.id?`<button class="pnj-del-btn admin-only" onclick="deletePNJ('${p.id}')" style="display:${window._isAdmin?'flex':'none'}">✕ Supprimer</button>`:'';
+  const adminBtns=p.id?`
+    <div class="admin-actions admin-only" style="display:${window._isAdmin?'flex':'none'};gap:8px;margin-top:10px;flex-wrap:wrap;">
+      <button class="pnj-edit-btn" onclick="openEditPNJ('${p.id}')">✎ Modifier</button>
+      <button class="pnj-del-btn" onclick="deletePNJ('${p.id}')">✕ Supprimer</button>
+    </div>`:'';
 
   card.innerHTML=`
     <div class="pnj-photo" style="background:linear-gradient(135deg,${c}14,#04060f)">
@@ -195,7 +221,7 @@ function buildPNJCard(p){
       </div>
       <p class="pnj-desc">${p.desc||''}</p>
       ${motivHTML}
-      ${adminDel}
+      ${adminBtns}
     </div>
     <div class="pnj-deco"></div>
   `;
@@ -217,6 +243,7 @@ window.submitPNJ=async function(){
   const danger=document.getElementById('pnj-danger').value;
   const photoUrl=document.getElementById('pnj-photo-url').value.trim();
   const desc=document.getElementById('pnj-desc').value.trim();
+  const motDesc=document.getElementById('pnj-mot-desc').value.trim();
   const motSocial=document.getElementById('pnj-mot-social').value.trim();
   const motEco=document.getElementById('pnj-mot-eco').value.trim();
   const motMil=document.getElementById('pnj-mot-mil').value.trim();
@@ -230,10 +257,10 @@ window.submitPNJ=async function(){
     catch(e){console.warn('Photo upload:',e.message);}
   }
   try{
-    await addDoc(collection(db,'pnj'),{nom,prenom,age,race,role,titre,marital,taille,category,danger,photoUrl:finalPhoto,desc,motivations:{social:motSocial,economique:motEco,militaire:motMil},createdAt:serverTimestamp()});
+    await addDoc(collection(db,'pnj'),{nom,prenom,age,race,role,titre,marital,taille,category,danger,photoUrl:finalPhoto,desc,motivations:{desc:motDesc,social:motSocial,economique:motEco,militaire:motMil},createdAt:serverTimestamp()});
     showToast('✓ PNJ créé !','success');
     closePNJModal();
-    ['pnj-nom','pnj-prenom','pnj-age','pnj-race','pnj-role','pnj-titre','pnj-marital','pnj-taille','pnj-photo-url','pnj-desc','pnj-mot-social','pnj-mot-eco','pnj-mot-mil'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+    ['pnj-nom','pnj-prenom','pnj-age','pnj-race','pnj-role','pnj-titre','pnj-marital','pnj-taille','pnj-photo-url','pnj-desc','pnj-mot-desc','pnj-mot-social','pnj-mot-eco','pnj-mot-mil'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
     document.getElementById('pnj-category').value='';
     clearPnjPrev();
   }catch(e){showToast('⚠ '+e.message,'error');}
@@ -339,9 +366,13 @@ function showToast(msg,type='success'){const t=document.getElementById('toast');
 .pnj-tag{font-family:'Share Tech Mono',monospace;font-size:.52rem;letter-spacing:.1em;text-transform:uppercase;padding:2px 9px;border:1px solid var(--border);color:var(--muted);}
 .pnj-desc{font-size:.85rem;color:var(--muted);line-height:1.7;font-weight:300;flex:1;margin-bottom:14px;}
 .pnj-divider{height:1px;background:var(--border);margin-bottom:12px;}
+.pnj-mot-desc{font-size:.82rem;color:var(--text);line-height:1.65;margin-bottom:10px;}
 .pnj-mot-title{font-family:'Orbitron',sans-serif;font-size:.62rem;font-weight:700;letter-spacing:.18em;color:#fff;text-transform:uppercase;margin-bottom:10px;}
 .pnj-mot-item{font-family:'Share Tech Mono',monospace;font-size:.62rem;letter-spacing:.08em;color:var(--muted);line-height:1.65;margin-bottom:6px;}
 .pnj-mot-lbl{font-weight:700;}
+.admin-actions{display:flex;}
+.pnj-edit-btn{font-family:'Share Tech Mono',monospace;font-size:.6rem;letter-spacing:.1em;background:rgba(0,245,255,.08);border:1px solid rgba(0,245,255,.3);color:var(--cyan);padding:6px 12px;cursor:pointer;transition:all .2s;}
+.pnj-edit-btn:hover{background:rgba(0,245,255,.15);border-color:var(--cyan);}
 .pnj-del-btn{font-family:'Share Tech Mono',monospace;font-size:.56rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);background:transparent;border:1px solid rgba(90,122,144,0.3);padding:5px 12px;cursor:pointer;transition:all .2s;margin-top:10px;align-self:flex-start;display:flex;align-items:center;gap:6px;}
 .pnj-del-btn:hover{color:#ff3030;border-color:rgba(255,48,48,0.35);background:rgba(255,48,48,0.04);}
 .pnj-deco{position:absolute;bottom:0;right:0;width:24px;height:24px;border-top:1px solid var(--border);border-left:1px solid var(--border);pointer-events:none;z-index:2;}
@@ -526,6 +557,7 @@ footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:22
       <div class="form-section">
         <div class="form-section-title">Motivations</div>
         <div class="mot-block">
+          <div class="fg"><label class="fl">Description des motivations</label><textarea class="fta" id="pnj-mot-desc" placeholder="Décrivez les ambitions générales de ce PNJ..." style="min-height:72px"></textarea></div>
           <div class="fg"><label class="fl mot-label social">Plan Social :</label><textarea class="fta" id="pnj-mot-social" placeholder="Objectifs sociaux, alliances, influence populaire..." style="min-height:58px"></textarea></div>
           <div class="fg"><label class="fl mot-label eco">Plan Économique :</label><textarea class="fta" id="pnj-mot-eco" placeholder="Ressources convoitées, stratégie économique..." style="min-height:58px"></textarea></div>
           <div class="fg" style="margin-bottom:0"><label class="fl mot-label mil">Plan Militaire :</label><textarea class="fta" id="pnj-mot-mil" placeholder="Stratégie militaire, armées, conquêtes..." style="min-height:58px"></textarea></div>
@@ -577,9 +609,98 @@ footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:22
 
 <script>
 /* ── Modal controls ── */
-function openPNJModal(){
-  // Refresh category select with latest filters
+
+/* ── Edit PNJ ── */
+window.openEditPNJ = async function(id){
+  const snap = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js").then(m=>m.getDoc(m.doc(db,'pnj',id)));
+  if(!snap.exists()) return;
+  const p = snap.data();
+
+  // Populate modal fields
+  document.getElementById('pnj-modal-title').textContent = '✎ Modifier le PNJ';
+  document.getElementById('pnj-nom').value     = p.nom     || '';
+  document.getElementById('pnj-prenom').value  = p.prenom  || '';
+  document.getElementById('pnj-age').value     = p.age     || '';
+  document.getElementById('pnj-race').value    = p.race    || '';
+  document.getElementById('pnj-role').value    = p.role    || '';
+  document.getElementById('pnj-titre').value   = p.titre   || '';
+  document.getElementById('pnj-marital').value = p.marital || '';
+  document.getElementById('pnj-taille').value  = p.taille  || '';
+  document.getElementById('pnj-desc').value    = p.desc    || '';
+  document.getElementById('pnj-danger').value  = p.danger  || '';
+  document.getElementById('pnj-photo-url').value = p.photoUrl || '';
+  document.getElementById('pnj-mot-desc').value  = p.motivations?.desc    || '';
+  document.getElementById('pnj-mot-social').value= p.motivations?.social   || '';
+  document.getElementById('pnj-mot-eco').value   = p.motivations?.economique|| '';
+  document.getElementById('pnj-mot-mil').value   = p.motivations?.militaire || '';
+  if(p.photoUrl) pnjPrevUrl(p.photoUrl);
+
+  // Switch submit button to update mode
+  const btn = document.getElementById('pnj-submit-btn');
+  btn.textContent = '✎ Mettre à jour';
+  btn.onclick = () => updatePNJ(id);
+
+  // Set category
   if(window._refreshCategorySelect) window._refreshCategorySelect();
+  setTimeout(()=>{ document.getElementById('pnj-category').value = p.category || ''; }, 100);
+
+  document.getElementById('pnj-modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+};
+
+window.updatePNJ = async function(id){
+  if(!window._isAdmin){ showToast('⚠ Connexion admin requise','error'); return; }
+  const nom     = document.getElementById('pnj-nom').value.trim();
+  const prenom  = document.getElementById('pnj-prenom').value.trim();
+  const age     = document.getElementById('pnj-age').value.trim();
+  const race    = document.getElementById('pnj-race').value.trim();
+  const role    = document.getElementById('pnj-role').value.trim();
+  const titre   = document.getElementById('pnj-titre').value.trim();
+  const marital = document.getElementById('pnj-marital').value.trim();
+  const taille  = document.getElementById('pnj-taille').value.trim();
+  const category= document.getElementById('pnj-category').value;
+  const danger  = document.getElementById('pnj-danger').value;
+  const photoUrl= document.getElementById('pnj-photo-url').value.trim();
+  const desc    = document.getElementById('pnj-desc').value.trim();
+  const motDesc = document.getElementById('pnj-mot-desc').value.trim();
+  const motSocial=document.getElementById('pnj-mot-social').value.trim();
+  const motEco  = document.getElementById('pnj-mot-eco').value.trim();
+  const motMil  = document.getElementById('pnj-mot-mil').value.trim();
+  if(!nom||!prenom||!desc){ showToast('Remplissez Nom, Prénom et Description','error'); return; }
+
+  const btn = document.getElementById('pnj-submit-btn');
+  btn.disabled = true; btn.textContent = '⟳ Mise à jour...';
+
+  let finalPhoto = photoUrl;
+  const photoFile = document.getElementById('pnj-file').files[0];
+  if(photoFile){
+    try{
+      const {ref,uploadBytes,getDownloadURL} = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js");
+      const r2=ref(storage,`pnj/${Date.now()}_${photoFile.name}`);
+      const s2=await uploadBytes(r2,photoFile);
+      finalPhoto=await getDownloadURL(s2.ref);
+    }catch(e){ console.warn('Photo upload:',e.message); }
+  }
+
+  try{
+    const {doc:fDoc, updateDoc} = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
+    await updateDoc(fDoc(db,'pnj',id),{nom,prenom,age,race,role,titre,marital,taille,category,danger,photoUrl:finalPhoto,desc,motivations:{desc:motDesc,social:motSocial,economique:motEco,militaire:motMil}});
+    showToast('✓ PNJ mis à jour !','success');
+    // Update card in DOM
+    const oldCard = document.querySelector(`.pnj-card[data-id="${id}"]`);
+    if(oldCard){ const newCard=buildPNJCard({id,...{nom,prenom,age,race,role,titre,marital,taille,category,danger,photoUrl:finalPhoto,desc,motivations:{desc:motDesc,social:motSocial,economique:motEco,militaire:motMil}}}); oldCard.replaceWith(newCard); }
+    closePNJModal();
+  }catch(e){ showToast('⚠ '+e.message,'error'); }
+  btn.disabled=false; btn.textContent='✎ Mettre à jour';
+  // Reset button for next creation
+  setTimeout(()=>{ btn.textContent='◆ Créer le PNJ'; btn.onclick=submitPNJ; }, 500);
+};
+
+function openPNJModal(){
+  if(window._refreshCategorySelect) window._refreshCategorySelect();
+  document.getElementById('pnj-modal-title').textContent='◆ Nouveau PNJ';
+  const btn=document.getElementById('pnj-submit-btn');
+  btn.textContent='◆ Créer le PNJ'; btn.onclick=submitPNJ;
   document.getElementById('pnj-modal').classList.add('open');
   document.body.style.overflow='hidden';
 }

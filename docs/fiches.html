@@ -10,7 +10,7 @@
 
 <script type="module">
 import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import{getFirestore,collection,addDoc,getDocs,query,where,orderBy,serverTimestamp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import{getFirestore,collection,addDoc,getDocs,onSnapshot,query,where,orderBy,serverTimestamp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import{getAuth,onAuthStateChanged}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import{getStorage,ref,uploadBytes,getDownloadURL}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 const firebaseConfig={apiKey:"AIzaSyAru7qZX8Gu_b8Y3oNDV-a5PmkrrkRjkcs",authDomain:"jaharta-rp.firebaseapp.com",projectId:"jaharta-rp",storageBucket:"jaharta-rp.firebasestorage.app",messagingSenderId:"217075417489",appId:"1:217075417489:web:4d1e2df422a5cd42411a30",measurementId:"G-15JSSBZWCH"};
@@ -22,19 +22,35 @@ onAuthStateChanged(auth,user=>{
   if(b) b.classList.toggle('visible',!!user);
   if(l){if(user){l.textContent='⚙ Connecté';l.removeAttribute('href');l.style.cursor='default';l.style.opacity='0.55';}else{l.textContent='⚙ Connexion';l.setAttribute('href','admin.html');l.style.cursor='';l.style.opacity='';}}
 });
-async function loadCards(){
+function loadCards(){
   try{
-    const q=query(collection(db,"fiches"),where("status","==","validee"),orderBy("createdAt","desc"));
-    const snap=await getDocs(q);
-    const container=document.getElementById("cards-container");
-    const noRes=document.getElementById("no-results");
-    const empty=document.getElementById("empty-state");
-    let count=0;
-    if(empty)empty.remove();
-    snap.forEach(d=>{container.insertBefore(buildCard({id:d.id,...d.data()}),noRes);count++;});
-    animateCount(count);updateCounts();
-    if(count===0){document.getElementById("empty-state2").style.display="block";}
-  }catch(e){console.warn("Firebase non configuré:",e.message);document.getElementById("empty-state").textContent="⚠ Firebase non configuré — voir README.md";}
+    // onSnapshot = temps réel, pas besoin d'index composite
+    const q=query(collection(db,"fiches"),where("status","==","validee"));
+    onSnapshot(q,(snap)=>{
+      const container=document.getElementById("cards-container");
+      const noRes=document.getElementById("no-results");
+      const empty=document.getElementById("empty-state");
+      if(empty)empty.remove();
+      // Clear existing cards (keep no-results)
+      Array.from(container.children).forEach(el=>{if(el!==noRes&&!el.id)el.remove();});
+      // Sort client-side by createdAt desc
+      const docs=[];
+      snap.forEach(d=>docs.push({id:d.id,...d.data()}));
+      docs.sort((a,b)=>{
+        const ta=a.createdAt?.toMillis?a.createdAt.toMillis():0;
+        const tb=b.createdAt?.toMillis?b.createdAt.toMillis():0;
+        return tb-ta;
+      });
+      docs.forEach(d=>container.insertBefore(buildCard(d),noRes));
+      animateCount(docs.length);updateCounts();
+      const e2=document.getElementById("empty-state2");
+      if(e2)e2.style.display=docs.length===0?"block":"none";
+    });
+  }catch(e){
+    console.warn("Firebase:",e.message);
+    const el=document.getElementById("empty-state");
+    if(el)el.textContent="⚠ Firebase non configuré";
+  }
 }
 
 /* ── FIX : submitToFirebase prend maintenant photoFile ET ficheFile séparément ── */
