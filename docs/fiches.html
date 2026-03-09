@@ -208,6 +208,22 @@ footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:22
 .fls a{font-family:'Share Tech Mono',monospace;font-size:.55rem;color:var(--muted);text-decoration:none;letter-spacing:.1em;transition:color .2s;}
 .fls a:hover{color:var(--cyan);}
 @media(max-width:880px){header{padding:0 16px}nav a span{display:none}.page-wrap{padding:32px 16px}.page-hero{padding:36px 16px}footer{flex-direction:column;gap:10px;text-align:center;padding:20px 16px}.frow{grid-template-columns:1fr}}
+
+/* ── Guide étapes (depuis accueil) ── */
+.guide-section{margin-top:36px;padding-top:32px;border-top:1px solid var(--border);}
+.sh{display:flex;align-items:center;gap:16px;margin-bottom:20px;}
+.sh-num{font-family:'Share Tech Mono',monospace;font-size:.58rem;color:var(--muted);letter-spacing:.2em;}
+.sh h2{font-family:'Orbitron',sans-serif;font-weight:700;font-size:.95rem;letter-spacing:.14em;color:#fff;}
+.sh-line{flex:1;height:1px;background:var(--border);}
+.guide-grid{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--border);}
+.gstep{padding:22px 18px;border-right:1px solid var(--border);position:relative;overflow:hidden;}
+.gstep:last-child{border-right:none;}
+.gstep::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--cyan),transparent);}
+.gnum{font-family:'Orbitron',sans-serif;font-size:1.6rem;font-weight:900;color:var(--border);line-height:1;margin-bottom:10px;}
+.gtitle{font-family:'Orbitron',sans-serif;font-size:.7rem;font-weight:700;letter-spacing:.1em;color:var(--cyan);margin-bottom:8px;}
+.gtext{font-family:'Rajdhani',sans-serif;font-size:.85rem;color:var(--muted);line-height:1.6;}
+@media(max-width:880px){.guide-grid{grid-template-columns:1fr 1fr}.gstep{border-right:none;border-bottom:1px solid var(--border)}.gstep:last-child{border-bottom:none}}
+
 </style>
 </head>
 <body>
