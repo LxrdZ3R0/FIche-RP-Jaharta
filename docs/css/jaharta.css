@@ -428,3 +428,14 @@ nav a.active::after {
 .admin-badge.visible {
   display: flex;
 }
+
+/* Admin badge as link */
+a.admin-badge {
+  text-decoration: none;
+  cursor: pointer;
+}
+a.admin-badge:hover {
+  border-color: rgba(0,255,136,0.6);
+  box-shadow: 0 0 12px rgba(0,255,136,0.25);
+  color: #00ff88;
+}
