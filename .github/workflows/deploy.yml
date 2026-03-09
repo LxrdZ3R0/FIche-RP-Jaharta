@@ -1,0 +1,8 @@
+# 📜 Fichier de configuration pour le projet Jaharta
+# Ce fichier est en attente de paramétrage futur.
+
+project_name: "Jaharta RP"
+status: "development"
+last_update: 2026-03-09
+
+# TODO: Ajouter ici les automatisations de déploiement GitHub Actions.
