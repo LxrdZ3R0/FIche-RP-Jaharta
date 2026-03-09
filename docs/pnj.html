@@ -28,6 +28,10 @@ onAuthStateChanged(auth,user=>{
   window._isAdmin=!!user;
   document.querySelectorAll('.admin-only').forEach(el=>el.style.display=user?'flex':'none');
   document.querySelectorAll('.admin-only-block').forEach(el=>el.style.display=user?'block':'none');
+  // Re-render filter bar to show/hide admin controls (+ Filtre, ✕ delete)
+  if(typeof renderFilterBar==='function') renderFilterBar();
+  // Show/hide delete buttons on already-built PNJ cards
+  document.querySelectorAll('.pnj-del-btn').forEach(btn=>btn.style.display=user?'flex':'none');
 });
 
 /* ── Load filters from Firestore ── */
@@ -495,6 +499,8 @@ footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:22
               <option value="RANG : B">RANG : B</option><option value="RANG : A">RANG : A</option>
               <option value="DANGER : S">DANGER : S</option><option value="DANGER : SS">DANGER : SS</option>
               <option value="DANGER : SSS">DANGER : SSS</option>
+              <option value="DANGER : X">DANGER : X</option>
+              <option value="DANGER : Z">DANGER : Z</option>
             </select>
           </div>
         </div>

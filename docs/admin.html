@@ -367,6 +367,9 @@
     <input type="password" class="login-input" id="login-password" placeholder="Mot de passe"        onkeydown="if(event.key==='Enter')adminLogin()">
     <button class="login-btn" onclick="adminLogin()">▸ CONNEXION</button>
     <div class="login-error" id="login-error"></div>
+    <div style="text-align:center;margin-top:18px;">
+      <a href="index.html" style="font-family:'Share Tech Mono',monospace;font-size:0.6rem;letter-spacing:0.14em;color:var(--muted);text-decoration:none;border:1px solid var(--border);padding:9px 22px;display:inline-block;transition:color 0.2s,border-color 0.2s;" onmouseover="this.style.color='var(--cyan)';this.style.borderColor='rgba(0,245,255,0.35)'" onmouseout="this.style.color='';this.style.borderColor=''">← Retour à l'accueil</a>
+    </div>
     <div class="login-hint">
       ▸ Créez un compte admin sur <strong>console.firebase.google.com</strong><br>
       Authentication → Users → Add user<br>
@@ -473,6 +476,7 @@ const RANKS = {
   F:{color:'#6b7280'},E:{color:'#9ca3af'},D:{color:'#60a5fa'},
   C:{color:'#34d399'},B:{color:'#fbbf24'},A:{color:'#f97316'},
   S:{color:'#ef4444'},SS:{color:'#ff006e'},SSS:{color:'#ffd60a'},
+  X:{color:'#e040fb'},Z:{color:'#ffffff'},
 };
 
 /* ─── TABS ─── */
