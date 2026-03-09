@@ -14,8 +14,6 @@ const firebaseConfig={apiKey:"AIzaSyAru7qZX8Gu_b8Y3oNDV-a5PmkrrkRjkcs",authDomai
 const app=initializeApp(firebaseConfig);const db=getFirestore(app);const storage=getStorage(app);
 const auth=getAuth(app);
 onAuthStateChanged(auth,user=>{
-  const btn=document.getElementById('add-char-btn');
-  if(btn) btn.style.display=user?'inline-flex':'none';
   const b=document.getElementById('admin-badge');
   const l=document.querySelector('.nav-admin');
   if(b) b.classList.toggle('visible',!!user);
@@ -225,6 +223,7 @@ footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:22
 @media(max-width:880px){.guide-grid{grid-template-columns:1fr 1fr}.gstep{border-right:none;border-bottom:1px solid var(--border)}.gstep:last-child{border-bottom:none}}
 
 </style>
+<script src="js/debug.js"></script>
 </head>
 <body>
 <div class="toast" id="toast"></div>
@@ -249,8 +248,20 @@ footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:22
       <p class="ph-sub">Tous les personnages joueurs validés par les administrateurs Jaharta</p>
     </div>
     <div class="ph-stats">
-      <div class="phs" style="display:flex;align-items:center;gap:12px;"><span class="phs-num" id="count-chars">–</span><span class="phs-lbl">Personnages</span><button class="add-btn" id="add-char-btn" onclick="openModal()" style="display:none">+ Ajouter</button></div>
+      <div class="phs" style="display:flex;align-items:center;gap:12px;"><span class="phs-num" id="count-chars">–</span><span class="phs-lbl">Personnages</span><button class="add-btn" id="add-char-btn" onclick="openModal()">+ Ajouter</button></div>
       <div class="phs"><span class="phs-num"><span class="hdot"></span>LIVE</span><span class="phs-lbl">Statut</span></div>
+    </div>
+  </div>
+</div>
+
+<div style="position:relative;z-index:1;padding:0 44px;max-width:1380px;margin:0 auto;">
+  <div class="guide-section">
+    <div class="sh"><span class="sh-num">// GUIDE</span><h2>Comment ajouter votre fiche</h2><div class="sh-line"></div></div>
+    <div class="guide-grid">
+      <div class="gstep"><div class="gnum">01</div><div class="gtitle">Créer votre fiche</div><p class="gtext">Choisissez votre format : HTML, Google Doc, Google Sites ou Canva. Préparez le nom, la race, le rang et la biographie de votre personnage.</p></div>
+      <div class="gstep"><div class="gnum">02</div><div class="gtitle">Préparer la photo</div><p class="gtext">Trouvez une illustration pour votre personnage. Elle sera affichée en preview sur le registre. Format recommandé : portrait ou carré, bonne résolution.</p></div>
+      <div class="gstep"><div class="gnum">03</div><div class="gtitle">Soumettre</div><p class="gtext">Cliquez sur <strong style="color:var(--cyan)">+ Ajouter</strong> et remplissez le formulaire. Votre fiche est envoyée en attente de validation admin.</p></div>
+      <div class="gstep"><div class="gnum">04</div><div class="gtitle">Validation</div><p class="gtext">Un administrateur vérifie votre fiche. Une fois approuvée, elle apparaît automatiquement sur le registre, visible par toute la communauté Jaharta.</p></div>
     </div>
   </div>
 </div>

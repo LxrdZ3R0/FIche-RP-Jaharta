@@ -123,6 +123,7 @@ footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:22
 .db-ico svg { width:36px; height:36px; fill:#7289da; opacity:.8; }
 .db::after { content:''; position:absolute; top:-40px; right:-40px; width:200px; height:200px; background:radial-gradient(circle,rgba(114,137,218,.06),transparent 65%); pointer-events:none; }
 </style>
+<script src="js/debug.js"></script>
 </head>
 <body>
 <header>
@@ -240,32 +241,20 @@ footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:22
 </script>
 
 <script type="module">
-/* ── Badge admin connecté (partagé toutes les pages) ── */
-import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import{initializeApp,getApps,getApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import{getAuth,onAuthStateChanged}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 const _cfg={apiKey:"AIzaSyAru7qZX8Gu_b8Y3oNDV-a5PmkrrkRjkcs",authDomain:"jaharta-rp.firebaseapp.com",projectId:"jaharta-rp",storageBucket:"jaharta-rp.firebasestorage.app",messagingSenderId:"217075417489",appId:"1:217075417489:web:4d1e2df422a5cd42411a30"};
-try{
-  const _app=initializeApp(_cfg,'badge');
-  const _auth=getAuth(_app);
-  onAuthStateChanged(_auth,user=>{
-    const b=document.getElementById('admin-badge');
-    const l=document.querySelector('.nav-admin');
-    if(b) b.classList.toggle('visible',!!user);
-    if(l){
-      if(user){
-        l.textContent='⚙ Connecté';
-        l.removeAttribute('href');
-        l.style.cursor='default';
-        l.style.opacity='0.55';
-      } else {
-        l.textContent='⚙ Connexion';
-        l.setAttribute('href','admin.html');
-        l.style.cursor='';
-        l.style.opacity='';
-      }
-    }
-  });
-}catch(e){}
+const _app=getApps().find(a=>a.name==='badge')||initializeApp(_cfg,'badge');
+const _auth=getAuth(_app);
+onAuthStateChanged(_auth,user=>{
+  const b=document.getElementById('admin-badge');
+  const l=document.querySelector('.nav-admin');
+  if(b) b.classList.toggle('visible',!!user);
+  if(l){
+    if(user){l.textContent='⚙ Connecté';l.removeAttribute('href');l.style.cursor='default';l.style.opacity='0.55';}
+    else{l.textContent='⚙ Connexion';l.setAttribute('href','admin.html');l.style.cursor='';l.style.opacity='';}
+  }
+});
 </script>
 </body>
 </html>
