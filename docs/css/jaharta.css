@@ -176,3 +176,223 @@ nav a.active::after {
   header { padding: 0 16px; }
   nav a span { display: none; }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   DISCORD BANNER — styles & glitch (partagés index + portail)
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Keyframes glitch : couche principale ── */
+@keyframes dbGlitch1 {
+  0%,100% { transform:none; text-shadow:none }
+  3%  { transform:skew(-5deg) translateX(-6px) }
+  5%  { transform:skew(3deg) translateX(5px) }
+  7%  { transform:none }
+  25% { transform:none }
+  27% { transform:translateX(-8px); text-shadow:-3px 0 var(--cyan) }
+  29% { transform:translateX(7px);  text-shadow: 3px 0 var(--magenta) }
+  31% { transform:none; text-shadow:none }
+  55% { transform:none }
+  57% { transform:skew(-3deg) translateX(-5px); text-shadow:-5px 0 var(--magenta),5px 0 var(--cyan) }
+  60% { transform:skew(2deg) translateX(4px) }
+  62% { transform:none; text-shadow:none }
+}
+/* ── Keyframes glitch : couche magenta (::before) ── */
+@keyframes dbGlitch2 {
+  0%,100% { opacity:0; transform:none; clip-path:none }
+  3%  { opacity:1; transform:translateX(-8px);  clip-path:polygon(0 8%,100% 8%,100% 32%,0 32%) }
+  5%  { opacity:1; transform:translateX(7px);   clip-path:polygon(0 58%,100% 58%,100% 78%,0 78%) }
+  7%  { opacity:0; clip-path:none }
+  27% { opacity:0 }
+  28% { opacity:1; transform:translateX(-10px); clip-path:polygon(0 15%,100% 15%,100% 40%,0 40%) }
+  30% { opacity:1; transform:translateX(8px);   clip-path:polygon(0 62%,100% 62%,100% 88%,0 88%) }
+  32% { opacity:0; clip-path:none }
+  57% { opacity:0 }
+  58% { opacity:1; transform:translateX(-7px);  clip-path:polygon(0 3%,100% 3%,100% 28%,0 28%) }
+  60% { opacity:1; transform:translateX(6px);   clip-path:polygon(0 50%,100% 50%,100% 72%,0 72%) }
+  63% { opacity:1; transform:translateX(-4px);  clip-path:polygon(0 30%,100% 30%,100% 55%,0 55%) }
+  65% { opacity:0; clip-path:none }
+}
+/* ── Keyframes glitch : couche cyan (::after) ── */
+@keyframes dbGlitch3 {
+  0%,100% { opacity:0; transform:none; clip-path:none }
+  3%  { opacity:1; transform:translateX(9px);   clip-path:polygon(0 48%,100% 48%,100% 72%,0 72%) }
+  5%  { opacity:1; transform:translateX(-6px);  clip-path:polygon(0 20%,100% 20%,100% 44%,0 44%) }
+  7%  { opacity:0; clip-path:none }
+  27% { opacity:0 }
+  29% { opacity:1; transform:translateX(9px);   clip-path:polygon(0 35%,100% 35%,100% 60%,0 60%) }
+  31% { opacity:1; transform:translateX(-7px);  clip-path:polygon(0 8%,100% 8%,100% 30%,0 30%) }
+  33% { opacity:0; clip-path:none }
+  57% { opacity:0 }
+  59% { opacity:1; transform:translateX(8px);   clip-path:polygon(0 55%,100% 55%,100% 80%,0 80%) }
+  62% { opacity:1; transform:translateX(-5px);  clip-path:polygon(0 18%,100% 18%,100% 42%,0 42%) }
+  64% { opacity:0; clip-path:none }
+}
+
+/* ── .db-title : setup pseudo-éléments + classes glitch ── */
+.db-title {
+  position:     relative;
+  display:      inline-block;
+  font-family:  'Orbitron', sans-serif;
+  font-weight:  700;
+  font-size:    .9rem;
+  letter-spacing: .14em;
+  color:        #fff;
+  margin-bottom: 3px;
+}
+.db-title::before,
+.db-title::after {
+  content:       attr(data-text);
+  position:      absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  opacity: 0;
+}
+.db-title::before { color: var(--magenta); }
+.db-title::after  { color: var(--cyan); }
+.db-title.glitching             { animation: dbGlitch1 2.8s steps(2,end) forwards; }
+.db-title.glitching::before     { animation: dbGlitch2 2.8s steps(2,end) forwards; }
+.db-title.glitching::after      { animation: dbGlitch3 2.8s steps(2,end) forwards; }
+
+/* ── .db structure de base ── */
+.db {
+  position:   relative;
+  z-index:    1;
+  background: linear-gradient(135deg, rgba(114,137,218,.07), rgba(114,137,218,.03));
+  border:     1px solid rgba(114,137,218,.25);
+  display:    flex;
+  align-items: center;
+  justify-content: space-between;
+  gap:         22px;
+  flex-wrap:   wrap;
+}
+.db::before {
+  content:    '';
+  position:   absolute;
+  top: 0; left: 0;
+  width:  4px;
+  height: 100%;
+  background: linear-gradient(180deg, #7289da, transparent);
+}
+.db-l   { display:flex; align-items:center; gap:16px; }
+.db-sub { font-family:'Share Tech Mono',monospace; font-size:.58rem; color:var(--muted); letter-spacing:.1em; }
+.db-btn {
+  font-family:   'Orbitron', sans-serif;
+  font-weight:   700;
+  font-size:     .66rem;
+  letter-spacing:.2em;
+  text-transform:uppercase;
+  color:         #fff;
+  background:    rgba(114,137,218,.8);
+  text-decoration: none;
+  padding:       13px 26px;
+  clip-path:     polygon(10px 0%,100% 0%,calc(100% - 10px) 100%,0% 100%);
+  transition:    background .2s, box-shadow .2s;
+  white-space:   nowrap;
+  display:       flex;
+  align-items:   center;
+  gap:           9px;
+  flex-shrink:   0;
+}
+.db-btn:hover { background:#7289da; box-shadow:0 0 24px rgba(114,137,218,.4); }
+.db-btn svg   { width:15px; height:15px; fill:currentColor; }
+
+/* ═══════════════════════════════════════════════════════════════
+   HERO TITLE GLITCH — fort, en boucle (page index uniquement)
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Keyframes couche principale ── */
+@keyframes heroGlitch1 {
+  0%,100% { transform:none; text-shadow:0 0 30px var(--cyan),0 0 100px rgba(0,245,255,.2) }
+  2%  { transform:skew(-8deg) translateX(-10px); text-shadow:-6px 0 var(--magenta),6px 0 var(--cyan) }
+  4%  { transform:skew(5deg)  translateX(9px);  text-shadow: 6px 0 var(--magenta),-6px 0 var(--cyan) }
+  5%  { transform:skew(-3deg) translateX(-5px) }
+  6%  { transform:none; text-shadow:0 0 30px var(--cyan),0 0 100px rgba(0,245,255,.2) }
+  20% { transform:none }
+  21% { transform:translateX(-14px); text-shadow:-5px 0 var(--cyan) }
+  22% { transform:translateX(12px);  text-shadow: 5px 0 var(--magenta) }
+  23% { transform:translateX(-8px) }
+  24% { transform:none; text-shadow:0 0 30px var(--cyan),0 0 100px rgba(0,245,255,.2) }
+  48% { transform:none }
+  49% { transform:skew(-6deg) translateX(-12px); text-shadow:-8px 0 var(--magenta),8px 0 var(--cyan),0 0 30px var(--cyan) }
+  50% { transform:skew(4deg)  translateX(10px) }
+  51% { transform:skew(-2deg) translateX(-6px); text-shadow: 0 0 30px var(--cyan),0 0 100px rgba(0,245,255,.2) }
+  53% { transform:none }
+  72% { transform:none }
+  73% { transform:translateX(-16px); text-shadow:-6px 0 var(--cyan),6px 0 var(--magenta) }
+  74% { transform:translateX(14px) }
+  75% { transform:translateX(-10px) }
+  76% { transform:none; text-shadow:0 0 30px var(--cyan),0 0 100px rgba(0,245,255,.2) }
+}
+/* ── Keyframes couche magenta (::before) ── */
+@keyframes heroGlitch2 {
+  0%,100% { opacity:0; clip-path:none }
+  2%  { opacity:1; transform:translateX(-12px); clip-path:polygon(0 5%,100% 5%,100% 30%,0 30%) }
+  4%  { opacity:1; transform:translateX(10px);  clip-path:polygon(0 60%,100% 60%,100% 85%,0 85%) }
+  5%  { opacity:1; transform:translateX(-6px);  clip-path:polygon(0 35%,100% 35%,100% 55%,0 55%) }
+  6%  { opacity:0; clip-path:none }
+  21% { opacity:0 }
+  21.5%{ opacity:1; transform:translateX(-15px); clip-path:polygon(0 10%,100% 10%,100% 40%,0 40%) }
+  22.5%{ opacity:1; transform:translateX(13px);  clip-path:polygon(0 55%,100% 55%,100% 80%,0 80%) }
+  24% { opacity:0; clip-path:none }
+  49% { opacity:0 }
+  49.5%{ opacity:1; transform:translateX(-14px); clip-path:polygon(0 0%,100% 0%,100% 25%,0 25%) }
+  50.5%{ opacity:1; transform:translateX(12px);  clip-path:polygon(0 45%,100% 45%,100% 70%,0 70%) }
+  51.5%{ opacity:1; transform:translateX(-8px);  clip-path:polygon(0 20%,100% 20%,100% 45%,0 45%) }
+  53% { opacity:0; clip-path:none }
+  73% { opacity:0 }
+  73.5%{ opacity:1; transform:translateX(-18px); clip-path:polygon(0 8%,100% 8%,100% 35%,0 35%) }
+  74.5%{ opacity:1; transform:translateX(16px);  clip-path:polygon(0 62%,100% 62%,100% 90%,0 90%) }
+  76% { opacity:0; clip-path:none }
+}
+/* ── Keyframes couche cyan (::after) ── */
+@keyframes heroGlitch3 {
+  0%,100% { opacity:0; clip-path:none }
+  2%  { opacity:1; transform:translateX(13px);  clip-path:polygon(0 50%,100% 50%,100% 75%,0 75%) }
+  4%  { opacity:1; transform:translateX(-11px); clip-path:polygon(0 20%,100% 20%,100% 45%,0 45%) }
+  5%  { opacity:1; transform:translateX(7px);   clip-path:polygon(0 70%,100% 70%,100% 90%,0 90%) }
+  6%  { opacity:0; clip-path:none }
+  21% { opacity:0 }
+  21.5%{ opacity:1; transform:translateX(16px);  clip-path:polygon(0 40%,100% 40%,100% 65%,0 65%) }
+  22.5%{ opacity:1; transform:translateX(-14px); clip-path:polygon(0 5%,100% 5%,100% 30%,0 30%) }
+  24% { opacity:0; clip-path:none }
+  49% { opacity:0 }
+  49.5%{ opacity:1; transform:translateX(15px);  clip-path:polygon(0 55%,100% 55%,100% 80%,0 80%) }
+  50.5%{ opacity:1; transform:translateX(-13px); clip-path:polygon(0 25%,100% 25%,100% 50%,0 50%) }
+  51.5%{ opacity:1; transform:translateX(9px);   clip-path:polygon(0 10%,100% 10%,100% 35%,0 35%) }
+  53% { opacity:0; clip-path:none }
+  73% { opacity:0 }
+  73.5%{ opacity:1; transform:translateX(19px);  clip-path:polygon(0 45%,100% 45%,100% 72%,0 72%) }
+  74.5%{ opacity:1; transform:translateX(-17px); clip-path:polygon(0 18%,100% 18%,100% 42%,0 42%) }
+  76% { opacity:0; clip-path:none }
+}
+
+/* ── .hero-title setup glitch ── */
+.hero-title {
+  position:   relative;
+  display:    inline-block;
+}
+.hero-title .c {
+  position: relative;
+  display:  inline-block;
+}
+.hero-title .c::before,
+.hero-title .c::after {
+  content:      attr(data-text);
+  position:     absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  opacity: 0;
+}
+.hero-title .c::before { color: var(--magenta); }
+.hero-title .c::after  { color: var(--gold); }
+.hero-title .c.glitching {
+  animation: heroGlitch1 8s steps(2,end) infinite;
+}
+.hero-title .c.glitching::before {
+  animation: heroGlitch2 8s steps(2,end) infinite;
+}
+.hero-title .c.glitching::after {
+  animation: heroGlitch3 8s steps(2,end) infinite;
+}
