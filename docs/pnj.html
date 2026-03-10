@@ -1,4 +1,27 @@
 <!DOCTYPE html>
+<!--
+  ═══════════════════════════════════════════════════════════════════════
+  pnj.html — Personnages Non-Joueurs importants
+  ───────────────────────────────────────────────────────────────────────
+  Fonctionnalités :
+  - Grille de cartes PNJ avec photo, titre spécial coloré, tags
+  - Filtres dynamiques depuis Firestore (collection pnj_filters)
+  - Filtres par défaut seedés automatiquement si la collection est vide
+  - Modal de création/édition PNJ (admin uniquement)
+  - Modal de création de filtre personnalisé (admin)
+  - Boutons Modifier + Supprimer sur chaque carte (admin)
+
+  Firebase (module ESM) :
+  - Firestore : collections 'pnj' et 'pnj_filters'
+  - Storage   : dossier pnj/
+  - Auth      : badge admin + affichage conditionnel des contrôles
+
+  Note importante sur showToast :
+  - Défini dans le module ESM (l.310) ET exposé en window.showToast
+  - Les fonctions du second bloc <script> (updatePNJ, openEditPNJ)
+    utilisent window.showToast pour éviter l'erreur "not defined"
+  ═══════════════════════════════════════════════════════════════════════
+-->
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
@@ -9,17 +32,24 @@
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=Share+Tech+Mono&family=Rajdhani:wght@300;400;500;600&display=swap" rel="stylesheet">
 
 <script type="module">
+/*
+ * ─── FIREBASE MODULE ───────────────────────────────────────────────────
+ * Toutes les interactions Firestore/Storage sont ici.
+ * Les fonctions utiles sont exposées sur window pour les scripts non-module.
+ * ─────────────────────────────────────────────────────────────────────── */
 import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import{getFirestore,collection,addDoc,getDocs,deleteDoc,doc,getDoc,updateDoc,query,orderBy,serverTimestamp,onSnapshot,setDoc}
   from"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import{getStorage,ref,uploadBytes,getDownloadURL}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 import{getAuth,onAuthStateChanged}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
+/* ── Config Firebase ── */
 const cfg={apiKey:"AIzaSyAru7qZX8Gu_b8Y3oNDV-a5PmkrrkRjkcs",authDomain:"jaharta-rp.firebaseapp.com",projectId:"jaharta-rp",storageBucket:"jaharta-rp.firebasestorage.app",messagingSenderId:"217075417489",appId:"1:217075417489:web:4d1e2df422a5cd42411a30"};
 const app=initializeApp(cfg);
 const db=getFirestore(app);
 const storage=getStorage(app);
 const auth=getAuth(app);
+/* ── Globals Firebase pour le second bloc <script> (non-module) ── */
 window._db=db;
 window._storage=storage;
 window._getDoc=getDoc;
@@ -29,12 +59,12 @@ window._ref=ref;
 window._uploadBytes=uploadBytes;
 window._getDownloadURL=getDownloadURL;
 
-/* ── globals ── */
+/* ── État global de la page ── */
 window._isAdmin=false;
 window._filters=[];   // [{id, label, color}]
 window._activeFilter='all';
 
-/* ── Auth ── */
+/* ── Auth : badge nav + affichage conditionnel des boutons admin ── */
 onAuthStateChanged(auth,user=>{
   const _b=document.getElementById("admin-badge");
   const _l=document.querySelector(".nav-admin");
@@ -50,9 +80,9 @@ onAuthStateChanged(auth,user=>{
   document.querySelectorAll('.pnj-del-btn').forEach(btn=>btn.style.display=user?'flex':'none');
 });
 
-/* ── Load filters from Firestore ── */
+/* ─── FILTRES ─────────────────────────────────────────────────────── */
 
-/* ── Seed default filters if none exist ── */
+/* ── Seeding des filtres par défaut si la collection pnj_filters est vide ── */
 async function seedDefaultFilters(){
   const snap = await getDocs(collection(db,'pnj_filters'));
   if(snap.size > 0) return; // already seeded
@@ -70,6 +100,8 @@ async function seedDefaultFilters(){
   }
 }
 
+/** Charge les filtres depuis Firestore et appelle renderFilterBar() */
+/* loadFilters : récupère les filtres depuis Firestore et reconstruit la barre */
 async function loadFilters(){
   try{
     const snap=await getDocs(query(collection(db,'pnj_filters'),orderBy('createdAt','asc')));
@@ -79,7 +111,9 @@ async function loadFilters(){
   renderFilterBar();
 }
 
-/* ── Render filter bar ── */
+/* ── Rendu de la barre de filtres (appelé après auth + après création d'un filtre) ── */
+/* renderFilterBar : reconstruit la barre de filtres HTML
+   (boutons colorés dynamiques + croix admin + bouton + Filtre) */
 window.renderFilterBar=function(){
   const bar=document.getElementById('filter-bar');
   // Keep "Tous" button
@@ -110,7 +144,7 @@ window.renderFilterBar=function(){
   }
 };
 
-/* ── Apply filter ── */
+/** Filtre les cartes PNJ par catégorie (cache/affiche via style.display) */
 window.applyFilter=function(id,btn){
   window._activeFilter=id;
   document.querySelectorAll('.cat-btn').forEach(b=>b.classList.remove('active'));
@@ -124,7 +158,7 @@ window.applyFilter=function(id,btn){
   document.getElementById('no-results').style.display=v===0?'block':'none';
 };
 
-/* ── Add filter ── */
+/** Crée un nouveau filtre dans Firestore puis recharge la barre */
 window.saveFilter=async function(){
   const label=document.getElementById('new-filter-label').value.trim();
   const color=document.getElementById('new-filter-color').value;
@@ -140,7 +174,7 @@ window.saveFilter=async function(){
   btn.disabled=false;btn.textContent='Créer';
 };
 
-/* ── Delete filter ── */
+/** Supprime un filtre Firestore et le retire de la barre */
 window.deleteFilter=async function(id){
   if(!confirm('Supprimer ce filtre ?'))return;
   try{
@@ -152,7 +186,7 @@ window.deleteFilter=async function(id){
   }catch(e){showToast('Erreur: '+e.message,'error');}
 };
 
-/* ── Load PNJ ── */
+/* ── Écoute temps réel de la collection PNJ (onSnapshot) ── */
 function loadPNJ(){
   const q=query(collection(db,'pnj'),orderBy('createdAt','desc'));
   onSnapshot(q,snap=>{
@@ -176,7 +210,11 @@ function loadPNJ(){
   },err=>console.warn('PNJ load:',err.message));
 }
 
-/* ── Build card ── */
+/**
+ * Construit une carte PNJ en DOM.
+ * @param {Object} p - Données Firestore du PNJ
+ * @returns {HTMLElement} .pnj-card
+ */
 function buildPNJCard(p){
   // Find color from custom filters, fallback to default
   const filterObj=window._filters.find(f=>f.id===p.category);
@@ -236,7 +274,7 @@ function buildPNJCard(p){
   return card;
 }
 
-/* ── Submit PNJ ── */
+/** Crée un nouveau PNJ dans Firestore avec upload photo optionnel (admin) */
 window.submitPNJ=async function(){
   if(!window._isAdmin){showToast('⚠ Connexion admin requise','error');return;}
   const nom=document.getElementById('pnj-nom').value.trim();
@@ -275,7 +313,7 @@ window.submitPNJ=async function(){
   btn.disabled=false;btn.textContent='◆ Créer le PNJ';
 };
 
-/* ── Delete PNJ ── */
+/** Supprime un PNJ de Firestore et le retire du DOM (admin) */
 window.deletePNJ=async function(id){
   if(!window._isAdmin)return;
   if(!confirm('Supprimer définitivement ce PNJ ?'))return;
@@ -286,7 +324,7 @@ window.deletePNJ=async function(id){
   }catch(e){showToast('Erreur: '+e.message,'error');}
 };
 
-/* ── Init ── */
+/* ── Initialisation : charge filtres → peuple le select → charge PNJ ── */
 (async()=>{
   await loadFilters();
   // Populate category dropdown with custom filters
@@ -307,6 +345,10 @@ window._refreshCategorySelect=function(){
   });
 };
 
+/**
+ * Affiche une notification temporaire.
+ * Exposée en window.showToast pour les fonctions du second bloc script.
+ */
 function showToast(msg,type='success'){const t=document.getElementById('toast');t.textContent=msg;t.className=`toast ${type} show`;setTimeout(()=>{t.className='toast';},4000);}
 window.showToast=showToast;
 </script>
@@ -617,9 +659,17 @@ footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:22
 </footer>
 
 <script>
-/* ── Modal controls ── */
+/* ════════════════════════════════════════════════════════
+   SECOND BLOC SCRIPT (non-module)
+   Fonctions appelées depuis les attributs onclick HTML.
+   Utilisent les globals window._ exposés par le module ESM.
+   ════════════════════════════════════════════════════════ */
 
-/* ── Edit PNJ ── */
+/**
+ * Ouvre le modal en mode édition et pré-remplit les champs.
+ * Change le bouton submit en mode 'Mettre à jour'.
+ * @param {string} id - ID du document PNJ dans Firestore
+ */
 window.openEditPNJ = async function(id){
   const snap = await window._getDoc(window._doc(window._db,'pnj',id));
   if(!snap.exists()) return;
@@ -657,6 +707,12 @@ window.openEditPNJ = async function(id){
   document.body.style.overflow = 'hidden';
 };
 
+/**
+ * Met à jour un PNJ existant dans Firestore.
+ * Gère l'upload d'une nouvelle photo si fournie.
+ * Remplace la carte dans le DOM sans rechargement.
+ * @param {string} id - ID du document Firestore
+ */
 window.updatePNJ = async function(id){
   if(!window._isAdmin){ showToast('⚠ Connexion admin requise','error'); return; }
   const nom     = document.getElementById('pnj-nom').value.trim();
@@ -727,7 +783,7 @@ function closeFilterModal(){document.getElementById('filter-modal').classList.re
 document.getElementById('pnj-modal').addEventListener('click',e=>{if(e.target===e.currentTarget)closePNJModal();});
 document.getElementById('filter-modal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeFilterModal();});
 
-/* ── Color picker sync ── */
+/* ── Synchronisation du color picker (hex ↔ input couleur ↔ aperçu) ── */
 function syncHex(v){
   document.getElementById('new-filter-color-hex').value=v;
   document.getElementById('color-preview-box').style.background=v;
@@ -752,13 +808,13 @@ document.getElementById('new-filter-label').addEventListener('input',e=>{
   updateFilterPreview(document.getElementById('new-filter-color').value, e.target.value||'Nouveau filtre');
 });
 
-/* ── Photo preview ── */
+/* ── Prévisualisation photo dans le modal PNJ ── */
 function pnjPrevFile(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{showPnjPrev(ev.target.result);document.getElementById('pnj-photo-url').value='';};r.readAsDataURL(f);}
 function pnjPrevUrl(u){if(!u){clearPnjPrev();return;}showPnjPrev(u);}
 function showPnjPrev(src){document.getElementById('pnj-pdtxt').style.display='none';let img=document.querySelector('.photo-drop img.prev-img');if(!img){img=document.createElement('img');img.className='prev-img';document.querySelector('.photo-drop').appendChild(img);}img.src=src;}
 function clearPnjPrev(){document.getElementById('pnj-pdtxt').style.display='';const img=document.querySelector('.photo-drop img.prev-img');if(img)img.remove();}
 
-/* ── Refresh filter select after filter creation ── */
+/* ── Après création d'un filtre, met à jour le select 'Catégorie' du modal PNJ ── */
 const _origSaveFilter=window.saveFilter;
 window.saveFilter=async function(){
   await _origSaveFilter();

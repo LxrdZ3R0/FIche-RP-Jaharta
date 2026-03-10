@@ -1,4 +1,19 @@
 <!DOCTYPE html>
+<!--
+  ═══════════════════════════════════════════════════════════════════════
+  index.html — Page d'accueil de Jaharta RP
+  ───────────────────────────────────────────────────────────────────────
+  Contenu :
+  - Hero animé avec effet glitch sur le titre (loop infini)
+  - Particules flottantes générées par JS
+  - 3 cards de navigation (Fiches, PNJ, Portail)
+  - Bannière Discord avec glitch au hover
+  - Open Graph / meta Discord embed
+
+  Firebase : uniquement pour l'état auth (badge admin dans la nav)
+  Pas de lecture/écriture Firestore sur cette page.
+  ═══════════════════════════════════════════════════════════════════════
+-->
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
@@ -134,7 +149,8 @@ footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:24
   </nav>
 </header>
 
-<!-- HERO -->
+<!-- ══════════════════════ HERO ══════════════════════ -->
+<!-- Titre animé glitch + sous-titre + boutons CTA -->
 <div class="hero">
   <div class="hglow-a"></div><div class="hglow-b"></div><div class="hglow-c"></div>
   <div class="particles" id="ptcl"></div>
@@ -154,9 +170,11 @@ footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:24
   </div>
 </div>
 
+<!-- Séparateur ligne horizontale -->
 <div class="div-line"></div>
 
-<!-- NAV CARDS -->
+<!-- ══════════ CARDS NAVIGATION ══════════
+     3 cartes cliquables vers les sections principales -->
 <div class="cards-section">
   <p class="cards-eyebrow">// Explorer l'univers Jaharta</p>
   <div class="cards-grid">
@@ -197,7 +215,8 @@ footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:24
   </div>
 </div>
 
-<!-- DISCORD BANNER -->
+<!-- ══════════ BANNIÈRE DISCORD ══════════
+     Glitch au hover déclenché par JS -->
 <div class="db">
   <div class="db-l">
     <div class="db-ico"><svg viewBox="0 0 24 24"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057c.002.022.015.043.032.054a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.107a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.108c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/></svg></div>
@@ -225,6 +244,11 @@ footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:24
 </footer>
 
 <script>
+/* ── Génération des particules flottantes ── */
+/* ─── PARTICULES FLOTTANTES ──────────────────────────────────────────
+   20 points lumineux de couleurs aléatoires, animation CSS via
+   la keyframe floatP et les variables --dx (déplacement horizontal)
+   ─────────────────────────────────────────────────────────────────── */
 const c=document.getElementById('ptcl');
 const cols=['#00f5ff','#ff006e','#ffd60a','#b06eff','#44ff88'];
 for(let i=0;i<20;i++){
@@ -236,14 +260,14 @@ for(let i=0;i<20;i++){
 </script>
 
 <script>
-/* ── Hero title glitch auto-loop ── */
+/* ── Démarre le glitch en boucle sur le titre hero ── */
 (function(){
   const c = document.querySelector('.hero-title .c');
   if(!c) return;
   c.classList.add('glitching');
 })();
 
-/* ── Discord banner glitch on hover ── */
+/* ── Glitch bannière Discord au survol (déclenché 1x par hover, durée 2.9s) ── */
 (function(){
   const banner = document.querySelector('.db');
   const title  = document.querySelector('.db-title');
@@ -262,6 +286,12 @@ for(let i=0;i<20;i++){
 </script>
 
 <script type="module">
+/*
+ * ─── BADGE ADMIN (script séparé, instance Firebase "badge") ───────────
+ * On utilise une instance Firebase distincte ("badge") pour éviter
+ * les conflits avec d'éventuelles autres instances sur la page.
+ * getApps().find() évite de recréer l'instance si elle existe déjà.
+ * ─────────────────────────────────────────────────────────────────────── */
 import{initializeApp,getApps,getApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import{getAuth,onAuthStateChanged}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 const _cfg={apiKey:"AIzaSyAru7qZX8Gu_b8Y3oNDV-a5PmkrrkRjkcs",authDomain:"jaharta-rp.firebaseapp.com",projectId:"jaharta-rp",storageBucket:"jaharta-rp.firebasestorage.app",messagingSenderId:"217075417489",appId:"1:217075417489:web:4d1e2df422a5cd42411a30"};

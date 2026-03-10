@@ -1,4 +1,23 @@
 <!DOCTYPE html>
+<!--
+  ═══════════════════════════════════════════════════════════════════════
+  admin.html — Panel d'administration Jaharta RP
+  ───────────────────────────────────────────────────────────────────────
+  Fonctionnalités :
+  - Écran de login Firebase (email / mot de passe)
+  - Vue temps réel de toutes les fiches (en attente / validées / rejetées)
+  - Actions sur fiches : Valider, Rejeter (avec motif), Remettre en attente, Supprimer
+  - Vue temps réel des PNJ avec lien vers pnj.html
+  - Compteurs et badges par onglet
+
+  Firebase :
+  - Auth      : signInWithEmailAndPassword + signOut + onAuthStateChanged
+  - Firestore : onSnapshot sur 'fiches' (orderBy createdAt desc) + 'pnj'
+  - Pas d'accès au Storage sur cette page
+
+  Accès : réservé aux comptes créés dans Firebase Authentication Console.
+  ═══════════════════════════════════════════════════════════════════════
+-->
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
@@ -20,6 +39,7 @@
     from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
   // ⚠️ REMPLACEZ PAR VOS CLÉS FIREBASE (identiques à index.html)
+  /* ── Config Firebase ── */
   const firebaseConfig = {
     apiKey:            "AIzaSyAru7qZX8Gu_b8Y3oNDV-a5PmkrrkRjkcs",
     authDomain:        "jaharta-rp.firebaseapp.com",
@@ -34,7 +54,7 @@
   const db   = getFirestore(app);
   const auth = getAuth(app);
 
-  /* ── Auth state ── */
+  /* ── Auth : redirige vers login ou panel selon l'état de connexion ── */
   onAuthStateChanged(auth, user => {
     if (user) {
       document.getElementById('login-screen').style.display  = 'none';
@@ -48,7 +68,7 @@
     }
   });
 
-  /* ── Login ── */
+  /* ── Connexion par email/mot de passe ── */
   window.adminLogin = async function() {
     const email    = document.getElementById('login-email').value;
     const password = document.getElementById('login-password').value;
@@ -61,12 +81,15 @@
     }
   };
 
-  /* ── Logout ── */
+  /* ── Déconnexion (retour à l'écran login) ── */
   window.adminLogout = async function() {
     await signOut(auth);
   };
 
-  /* ── Load ALL fiches (real-time listener) ── */
+  /**
+   * Écoute temps réel toutes les fiches ordonnées par date.
+   * Trie côté serveur et dispatche dans 3 tableaux : pending/approved/rejected.
+   */
   function loadAllFiches() {
     const q = query(collection(db, "fiches"), orderBy("createdAt", "desc"));
 
@@ -109,7 +132,7 @@
     });
   }
 
-  /* ── Validate ── */
+  /** Valide une fiche : status → 'validee' (visible publiquement) */
   window.validateFiche = async function(id) {
     await updateDoc(doc(db, "fiches", id), {
       status: "validee",
@@ -118,7 +141,7 @@
     showToast('✓ Fiche validée et publiée !', 'success');
   };
 
-  /* ── Reject ── */
+  /** Rejette une fiche avec motif optionnel */
   window.rejectFiche = async function(id) {
     const reason = document.getElementById('reject-reason-' + id)?.value || '';
     await updateDoc(doc(db, "fiches", id), {
@@ -129,20 +152,20 @@
     showToast('✗ Fiche rejetée.', 'error');
   };
 
-  /* ── Delete permanently ── */
+  /** Supprime définitivement une fiche de Firestore */
   window.deleteFiche = async function(id) {
     if (!confirm('Supprimer définitivement cette fiche ?')) return;
     await deleteDoc(doc(db, "fiches", id));
     showToast('Fiche supprimée.', 'error');
   };
 
-  /* ── Restore to pending ── */
+  /** Remet une fiche en attente (annule validation ou rejet) */
   window.restoreFiche = async function(id) {
     await updateDoc(doc(db, "fiches", id), { status: "en_attente" });
     showToast('Fiche remise en attente.', 'success');
   };
 
-  /* ── Load PNJ (real-time) ── */
+  /* ── Écoute temps réel des PNJ pour l'onglet PNJ du panel ── */
   function loadPNJ() {
     const q = query(collection(db, "pnj"), orderBy("createdAt", "desc"));
     onSnapshot(q, snap => {
@@ -221,7 +244,7 @@
     });
   }
 
-  /* ── Delete PNJ ── */
+  /* ─── SUPPRIMER PNJ ─── */
   window.deletePNJ = async function(id) {
     if (!confirm('Supprimer définitivement ce PNJ ?')) return;
     await deleteDoc(doc(db, "pnj", id));
@@ -464,7 +487,9 @@
 </div>
 
 <script>
-/* ─── RACES / RANKS ─── */
+/* ════════════════════════════════════════════════════════
+   DONNÉES STATIQUES — Races et Rangs (même définition que fiches.html)
+   ════════════════════════════════════════════════════════ */
 const RACES = {
   humanoid:  {color:'#00c8ff',label:'Humanoid'},
   zooid:     {color:'#44ff88',label:'Zooid'},
@@ -481,7 +506,7 @@ const RANKS = {
   X:{color:'#e040fb'},Z:{color:'#ffffff'},
 };
 
-/* ─── TABS ─── */
+/* ── Gestion des onglets (En attente / Validées / Rejetées / PNJ) ── */
 function switchTab(name, btn) {
   document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
@@ -489,7 +514,12 @@ function switchTab(name, btn) {
   document.getElementById('tab-' + name).classList.add('active');
 }
 
-/* ─── RENDER TABLE ─── */
+/**
+ * Génère la liste des fiches dans un onglet donné.
+ * @param {string} containerId - ID de l'élément DOM cible
+ * @param {Array}  fiches       - Tableau de fiches Firestore
+ * @param {string} type         - 'pending' | 'approved' | 'rejected'
+ */
 function renderTable(containerId, fiches, type) {
   const el = document.getElementById(containerId);
   if (!fiches.length) {
@@ -580,7 +610,7 @@ function renderTable(containerId, fiches, type) {
   });
 }
 
-/* ─── TOAST ─── */
+/* ── Notification temporaire (shared avec pnj.html via même pattern) ── */
 function showToast(msg, type = 'success') {
   const t = document.getElementById('toast');
   t.textContent = msg; t.className = `toast ${type} show`;
