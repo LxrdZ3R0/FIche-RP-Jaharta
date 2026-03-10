@@ -1,43 +1,85 @@
-/* ═══════════════════════════════════════════════════════════════
-   JAHARTA.CSS — Styles partagés sur toutes les pages
-   ═══════════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════════════
+   JAHARTA.CSS — Styles partagés sur toutes les pages du site
+   ═══════════════════════════════════════════════════════════════════════
+   IMPORTANT : Ce fichier est inclus par TOUTES les pages.
+   Ne pas y mettre de styles spécifiques à une seule page.
 
-/* ── Variables globales ── */
+   STRUCTURE :
+   1. Variables globales
+   2. Reset & base
+   3. Curseur custom
+   4. Effets de fond (scanlines CRT, grille)
+   5. Header & logo
+   6. Navigation
+   7. Scrollbar
+   8. Discord Banner (partagé index + portail)
+   9. Hero Title Glitch (page index uniquement)
+   10. Badge Admin connecté
+   ═══════════════════════════════════════════════════════════════════════ */
+
+
+/* ══════════════════════════════════════════════════════
+   1. VARIABLES GLOBALES
+   ══════════════════════════════════════════════════════ */
 :root {
+  /* Palette principale */
   --cyan:    #00f5ff;
   --magenta: #ff006e;
   --gold:    #ffd60a;
-  --dark:    #04060f;
-  --dark2:   #080d1a;
-  --panel:   rgba(0,245,255,0.035);
-  --border:  rgba(0,245,255,0.16);
-  --text:    #c8e0f0;
-  --muted:   #5a7a90;
 
-  /* Accent par défaut : cyan. Chaque page peut surcharger cette valeur. */
+  /* Fonds */
+  --dark:  #04060f;    /* fond principal */
+  --dark2: #080d1a;    /* fond cartes / panneaux */
+
+  /* Texte */
+  --text:  #c8e0f0;
+  --muted: #5a7a90;
+
+  /* Composants */
+  --panel:  rgba(0,245,255,0.035);
+  --border: rgba(0,245,255,0.16);
+
+  /* ── Accent dynamique : chaque page surcharge ces variables ──
+     Ex dans pnj.html : --accent: var(--magenta);
+     Utilisé pour la couleur active du nav, les glows, etc. */
   --accent:        var(--cyan);
   --accent-rgb:    0,245,255;
   --accent-border: rgba(0,245,255,0.22);
   --accent-bg:     rgba(0,245,255,0.05);
-  --accent-grid:   rgba(0,245,255,0.025);
+  --accent-grid:   rgba(0,245,255,0.025); /* couleur de la grille de fond */
 }
 
-/* ── Reset & base ── */
-*,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
-html { scroll-behavior:smooth; }
 
-/* ── Curseur custom Jaharta ── */
+/* ══════════════════════════════════════════════════════
+   2. RESET & BASE
+   ══════════════════════════════════════════════════════ */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin:  0;
+  padding: 0;
+}
+
+html { scroll-behavior: smooth; }
+
 body {
-  background:    var(--dark);
-  color:         var(--text);
-  font-family:   'Rajdhani', sans-serif;
-  font-size:     16px;
-  min-height:    100vh;
-  overflow-x:    hidden;
+  background:  var(--dark);
+  color:       var(--text);
+  font-family: 'Rajdhani', sans-serif;
+  font-size:   16px;
+  min-height:  100vh;
+  overflow-x:  hidden;
+
+  /* Curseur custom — flèche cyan avec glow, généré en SVG inline */
   cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cfilter id='glow'%3E%3CfeGaussianBlur stdDeviation='1.5' result='blur'/%3E%3CfeMerge%3E%3CfeMergeNode in='blur'/%3E%3CfeMergeNode in='SourceGraphic'/%3E%3C/feMerge%3E%3C/filter%3E%3Cpolygon points='4,2 4,18 8,14 11,20 13,19 10,13 16,13' fill='%230a0f1e' stroke='%2300f5ff' stroke-width='1.2' filter='url(%23glow)'/%3E%3C/svg%3E") 4 2, crosshair;
 }
 
-/* ── Scanlines CRT ── */
+
+/* ══════════════════════════════════════════════════════
+   3. EFFETS DE FOND
+   Pseudo-éléments sur body pour ne pas polluer le DOM
+   ══════════════════════════════════════════════════════ */
+
+/* Scanlines CRT — légères lignes horizontales sur tout l'écran */
 body::before {
   content: '';
   position: fixed;
@@ -50,10 +92,10 @@ body::before {
     rgba(0,0,0,0.055) 4px
   );
   pointer-events: none;
-  z-index: 9999;
+  z-index: 9999; /* au-dessus de tout sauf les modales */
 }
 
-/* ── Grille de fond (couleur via --accent-grid) ── */
+/* Grille de fond — couleur définie par --accent-grid (propre à chaque page) */
 body::after {
   content: '';
   position: fixed;
@@ -66,7 +108,10 @@ body::after {
   z-index: 0;
 }
 
-/* ── Header ── */
+
+/* ══════════════════════════════════════════════════════
+   4. HEADER
+   ══════════════════════════════════════════════════════ */
 header {
   position: sticky;
   top: 0;
@@ -81,107 +126,141 @@ header {
   backdrop-filter: blur(18px);
 }
 
-/* ── Logo ── */
+
+/* ══════════════════════════════════════════════════════
+   5. LOGO
+   ══════════════════════════════════════════════════════ */
 .logo {
-  font-family: 'Orbitron', sans-serif;
-  font-weight: 900;
-  font-size: 1.35rem;
+  font-family:    'Orbitron', sans-serif;
+  font-weight:    900;
+  font-size:      1.35rem;
   letter-spacing: 0.32em;
-  color: var(--cyan);
-  text-shadow: 0 0 22px var(--cyan);
+  color:          var(--cyan);
+  text-shadow:    0 0 22px var(--cyan);
   text-decoration: none;
 }
-.logo-slash { color: var(--magenta); text-shadow: 0 0 18px var(--magenta); }
+.logo-slash {
+  color:       var(--magenta);
+  text-shadow: 0 0 18px var(--magenta);
+}
 .logo-sub {
-  font-family: 'Share Tech Mono', monospace;
-  font-size: 0.46rem;
-  color: var(--muted);
+  font-family:    'Share Tech Mono', monospace;
+  font-size:      0.46rem;
+  color:          var(--muted);
   letter-spacing: 0.2em;
-  display: block;
-  margin-top: 2px;
+  display:        block;
+  margin-top:     2px;
 }
 
-/* ── Nav ── */
-nav { display:flex; gap:2px; align-items:center; }
+
+/* ══════════════════════════════════════════════════════
+   6. NAVIGATION
+   ══════════════════════════════════════════════════════ */
+nav { display: flex; gap: 2px; align-items: center; }
+
 nav a {
-  font-family: 'Share Tech Mono', monospace;
-  font-size: 0.65rem;
-  color: var(--muted);
+  font-family:    'Share Tech Mono', monospace;
+  font-size:      0.65rem;
+  color:          var(--muted);
   text-decoration: none;
   letter-spacing: 0.13em;
   text-transform: uppercase;
-  padding: 8px 13px;
-  border: 1px solid transparent;
-  transition: all 0.2s;
-  position: relative;
+  padding:        8px 13px;
+  border:         1px solid transparent;
+  transition:     all 0.2s;
+  position:       relative;
 }
 nav a:hover {
-  color: var(--cyan);
+  color:        var(--cyan);
   border-color: rgba(0,245,255,0.2);
-  background: rgba(0,245,255,0.03);
+  background:   rgba(0,245,255,0.03);
 }
+/* Lien de la page active — utilise la couleur accent de la page */
 nav a.active {
-  color: var(--accent);
+  color:        var(--accent);
   border-color: var(--accent-border);
-  background: var(--accent-bg);
+  background:   var(--accent-bg);
 }
 nav a.active::after {
-  content: '';
-  position: absolute;
-  bottom: -1px;
-  left: 0;
-  right: 0;
-  height: 1px;
+  content:    '';
+  position:   absolute;
+  bottom:     -1px;
+  left: 0; right: 0;
+  height:     1px;
   background: var(--accent);
   box-shadow: 0 0 8px var(--accent);
 }
+
+/* Bouton Admin dans le nav — toujours doré, distinct des autres liens */
 .nav-admin {
-  color: var(--gold) !important;
-  border-color: rgba(255,214,10,0.22) !important;
-  font-family: 'Orbitron', sans-serif !important;
-  font-weight: 700 !important;
-  font-size: 0.58rem !important;
+  color:          var(--gold)    !important;
+  border-color:   rgba(255,214,10,0.22) !important;
+  font-family:    'Orbitron', sans-serif !important;
+  font-weight:    700  !important;
+  font-size:      0.58rem !important;
   letter-spacing: 0.18em !important;
-  margin-left: 6px;
+  margin-left:    6px;
 }
 .nav-admin:hover {
-  border-color: var(--gold) !important;
-  background: rgba(255,214,10,0.05) !important;
+  border-color: var(--gold)            !important;
+  background:   rgba(255,214,10,0.05)  !important;
 }
 
-/* ── Dot animé (statut LIVE) ── */
+/* Dot animé — indicateur "en ligne" (utilisé dans le nav et hero) */
 .hdot {
-  width: 5px;
-  height: 5px;
+  width:         5px;
+  height:        5px;
   border-radius: 50%;
-  background: #00ff88;
-  box-shadow: 0 0 7px #00ff88;
-  display: inline-block;
-  margin-right: 4px;
-  animation: hdot-pulse 2s infinite;
+  background:    #00ff88;
+  box-shadow:    0 0 7px #00ff88;
+  display:       inline-block;
+  margin-right:  4px;
+  animation:     hdot-pulse 2s infinite;
 }
 @keyframes hdot-pulse {
-  0%,100% { opacity:1 }
-  50%      { opacity:.3 }
+  0%, 100% { opacity: 1 }
+  50%      { opacity: .3 }
 }
 
-/* ── Scrollbar ── */
+
+/* ══════════════════════════════════════════════════════
+   7. SCROLLBAR CUSTOM
+   ══════════════════════════════════════════════════════ */
 ::-webkit-scrollbar              { width: 4px; }
 ::-webkit-scrollbar-track        { background: var(--dark); }
 ::-webkit-scrollbar-thumb        { background: var(--border); }
 ::-webkit-scrollbar-thumb:hover  { background: var(--accent); }
 
-/* ── Responsive header ── */
+
+/* ══════════════════════════════════════════════════════
+   8. RESPONSIVE HEADER
+   ══════════════════════════════════════════════════════ */
 @media (max-width: 880px) {
   header { padding: 0 16px; }
-  nav a span { display: none; }
+  nav a span { display: none; } /* cache les labels, garde les icônes */
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   DISCORD BANNER — styles & glitch (partagés index + portail)
-   ═══════════════════════════════════════════════════════════════ */
 
-/* ── Keyframes glitch : couche principale ── */
+/* ═══════════════════════════════════════════════════════════════════════
+   9. DISCORD BANNER (partagé index.html + portail.html)
+   ═══════════════════════════════════════════════════════════════════════
+
+   Structure HTML attendue :
+   <div class="db">
+     <div class="db-l">
+       <div class="db-ico">...</div>
+       <div>
+         <div class="db-title" data-text="...">...</div>
+         <div class="db-sub">...</div>
+       </div>
+     </div>
+     <a class="db-btn" href="...">...</a>
+   </div>
+
+   Le glitch est déclenché par JS au survol (class "glitching" sur .db-title).
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── Keyframes glitch couche principale (position) ── */
 @keyframes dbGlitch1 {
   0%,100% { transform:none; text-shadow:none }
   3%  { transform:skew(-5deg) translateX(-6px) }
@@ -196,7 +275,7 @@ nav a.active::after {
   60% { transform:skew(2deg) translateX(4px) }
   62% { transform:none; text-shadow:none }
 }
-/* ── Keyframes glitch : couche magenta (::before) ── */
+/* ── Keyframes glitch couche magenta (::before) ── */
 @keyframes dbGlitch2 {
   0%,100% { opacity:0; transform:none; clip-path:none }
   3%  { opacity:1; transform:translateX(-8px);  clip-path:polygon(0 8%,100% 8%,100% 32%,0 32%) }
@@ -212,7 +291,7 @@ nav a.active::after {
   63% { opacity:1; transform:translateX(-4px);  clip-path:polygon(0 30%,100% 30%,100% 55%,0 55%) }
   65% { opacity:0; clip-path:none }
 }
-/* ── Keyframes glitch : couche cyan (::after) ── */
+/* ── Keyframes glitch couche cyan (::after) ── */
 @keyframes dbGlitch3 {
   0%,100% { opacity:0; transform:none; clip-path:none }
   3%  { opacity:1; transform:translateX(9px);   clip-path:polygon(0 48%,100% 48%,100% 72%,0 72%) }
@@ -228,20 +307,20 @@ nav a.active::after {
   64% { opacity:0; clip-path:none }
 }
 
-/* ── .db-title : setup pseudo-éléments + classes glitch ── */
+/* ── Élément .db-title : les pseudo-éléments portent les couches glitch ── */
 .db-title {
-  position:     relative;
-  display:      inline-block;
-  font-family:  'Orbitron', sans-serif;
-  font-weight:  700;
-  font-size:    .9rem;
+  position:       relative;
+  display:        inline-block;
+  font-family:    'Orbitron', sans-serif;
+  font-weight:    700;
+  font-size:      .9rem;
   letter-spacing: .14em;
-  color:        #fff;
-  margin-bottom: 3px;
+  color:          #fff;
+  margin-bottom:  3px;
 }
 .db-title::before,
 .db-title::after {
-  content:       attr(data-text);
+  content:       attr(data-text); /* duplique le texte via l'attribut HTML */
   position:      absolute;
   top: 0; left: 0;
   width: 100%; height: 100%;
@@ -250,58 +329,72 @@ nav a.active::after {
 }
 .db-title::before { color: var(--magenta); }
 .db-title::after  { color: var(--cyan); }
-.db-title.glitching             { animation: dbGlitch1 2.8s steps(2,end) forwards; }
-.db-title.glitching::before     { animation: dbGlitch2 2.8s steps(2,end) forwards; }
-.db-title.glitching::after      { animation: dbGlitch3 2.8s steps(2,end) forwards; }
 
-/* ── .db structure de base ── */
+/* Classes ajoutées par JS au survol pour déclencher le glitch */
+.db-title.glitching          { animation: dbGlitch1 2.8s steps(2,end) forwards; }
+.db-title.glitching::before  { animation: dbGlitch2 2.8s steps(2,end) forwards; }
+.db-title.glitching::after   { animation: dbGlitch3 2.8s steps(2,end) forwards; }
+
+/* ── Structure du banneau Discord ── */
 .db {
-  position:   relative;
-  z-index:    1;
-  background: linear-gradient(135deg, rgba(114,137,218,.07), rgba(114,137,218,.03));
-  border:     1px solid rgba(114,137,218,.25);
-  display:    flex;
-  align-items: center;
+  position:        relative;
+  z-index:         1;
+  background:      linear-gradient(135deg, rgba(114,137,218,.07), rgba(114,137,218,.03));
+  border:          1px solid rgba(114,137,218,.25);
+  display:         flex;
+  align-items:     center;
   justify-content: space-between;
-  gap:         22px;
-  flex-wrap:   wrap;
+  gap:             22px;
+  flex-wrap:       wrap;
 }
+/* Barre colorée gauche — identité Discord */
 .db::before {
   content:    '';
   position:   absolute;
   top: 0; left: 0;
-  width:  4px;
-  height: 100%;
+  width:      4px;
+  height:     100%;
   background: linear-gradient(180deg, #7289da, transparent);
 }
-.db-l   { display:flex; align-items:center; gap:16px; }
-.db-sub { font-family:'Share Tech Mono',monospace; font-size:.58rem; color:var(--muted); letter-spacing:.1em; }
+.db-l  { display:flex; align-items:center; gap:16px; }
+.db-sub {
+  font-family:    'Share Tech Mono', monospace;
+  font-size:      .58rem;
+  color:          var(--muted);
+  letter-spacing: .1em;
+}
 .db-btn {
-  font-family:   'Orbitron', sans-serif;
-  font-weight:   700;
-  font-size:     .66rem;
-  letter-spacing:.2em;
-  text-transform:uppercase;
-  color:         #fff;
-  background:    rgba(114,137,218,.8);
+  font-family:    'Orbitron', sans-serif;
+  font-weight:    700;
+  font-size:      .66rem;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  color:          #fff;
+  background:     rgba(114,137,218,.8);
   text-decoration: none;
-  padding:       13px 26px;
-  clip-path:     polygon(10px 0%,100% 0%,calc(100% - 10px) 100%,0% 100%);
-  transition:    background .2s, box-shadow .2s;
-  white-space:   nowrap;
-  display:       flex;
-  align-items:   center;
-  gap:           9px;
-  flex-shrink:   0;
+  padding:        13px 26px;
+  clip-path:      polygon(10px 0%,100% 0%,calc(100% - 10px) 100%,0% 100%);
+  transition:     background .2s, box-shadow .2s;
+  white-space:    nowrap;
+  display:        flex;
+  align-items:    center;
+  gap:            9px;
+  flex-shrink:    0;
 }
 .db-btn:hover { background:#7289da; box-shadow:0 0 24px rgba(114,137,218,.4); }
 .db-btn svg   { width:15px; height:15px; fill:currentColor; }
 
-/* ═══════════════════════════════════════════════════════════════
-   HERO TITLE GLITCH — fort, en boucle (page index uniquement)
-   ═══════════════════════════════════════════════════════════════ */
 
-/* ── Keyframes couche principale ── */
+/* ═══════════════════════════════════════════════════════════════════════
+   10. HERO TITLE GLITCH (page index uniquement, boucle infinie)
+   ═══════════════════════════════════════════════════════════════════════
+   Structure HTML :
+   <h1 class="hero-title">
+     <span class="c" data-text="JAHARTA">JAHARTA</span>
+   </h1>
+   La classe "glitching" est ajoutée au load par JS.
+   ═══════════════════════════════════════════════════════════════════════ */
+
 @keyframes heroGlitch1 {
   0%,100% { transform:none; text-shadow:0 0 30px var(--cyan),0 0 100px rgba(0,245,255,.2) }
   2%  { transform:skew(-8deg) translateX(-10px); text-shadow:-6px 0 var(--magenta),6px 0 var(--cyan) }
@@ -324,7 +417,6 @@ nav a.active::after {
   75% { transform:translateX(-10px) }
   76% { transform:none; text-shadow:0 0 30px var(--cyan),0 0 100px rgba(0,245,255,.2) }
 }
-/* ── Keyframes couche magenta (::before) ── */
 @keyframes heroGlitch2 {
   0%,100% { opacity:0; clip-path:none }
   2%  { opacity:1; transform:translateX(-12px); clip-path:polygon(0 5%,100% 5%,100% 30%,0 30%) }
@@ -345,7 +437,6 @@ nav a.active::after {
   74.5%{ opacity:1; transform:translateX(16px);  clip-path:polygon(0 62%,100% 62%,100% 90%,0 90%) }
   76% { opacity:0; clip-path:none }
 }
-/* ── Keyframes couche cyan (::after) ── */
 @keyframes heroGlitch3 {
   0%,100% { opacity:0; clip-path:none }
   2%  { opacity:1; transform:translateX(13px);  clip-path:polygon(0 50%,100% 50%,100% 75%,0 75%) }
@@ -367,19 +458,17 @@ nav a.active::after {
   76% { opacity:0; clip-path:none }
 }
 
-/* ── .hero-title setup glitch ── */
-.hero-title {
-  position:   relative;
-  display:    inline-block;
-}
+.hero-title { position:relative; display:inline-block; }
+
 .hero-title .c {
   position: relative;
   display:  inline-block;
 }
+/* Les pseudo-éléments portent les copies du texte pour le glitch */
 .hero-title .c::before,
 .hero-title .c::after {
-  content:      attr(data-text);
-  position:     absolute;
+  content:       attr(data-text);
+  position:      absolute;
   top: 0; left: 0;
   width: 100%; height: 100%;
   pointer-events: none;
@@ -387,21 +476,23 @@ nav a.active::after {
 }
 .hero-title .c::before { color: var(--magenta); }
 .hero-title .c::after  { color: var(--gold); }
-.hero-title .c.glitching {
-  animation: heroGlitch1 8s steps(2,end) infinite;
-}
-.hero-title .c.glitching::before {
-  animation: heroGlitch2 8s steps(2,end) infinite;
-}
-.hero-title .c.glitching::after {
-  animation: heroGlitch3 8s steps(2,end) infinite;
-}
 
-/* ═══════════════════════════════════════════════════════════════
-   BADGE ADMIN CONNECTÉ — visible dans le nav quand auth active
-   ═══════════════════════════════════════════════════════════════ */
+.hero-title .c.glitching          { animation: heroGlitch1 8s steps(2,end) infinite; }
+.hero-title .c.glitching::before  { animation: heroGlitch2 8s steps(2,end) infinite; }
+.hero-title .c.glitching::after   { animation: heroGlitch3 8s steps(2,end) infinite; }
+
+
+/* ═══════════════════════════════════════════════════════════════════════
+   11. BADGE ADMIN CONNECTÉ
+   ═══════════════════════════════════════════════════════════════════════
+   Présent dans le <nav> de toutes les pages sauf admin.html.
+   Masqué par défaut, affiché via .visible quand l'utilisateur est connecté.
+   Géré par le script Firebase Auth inline de chaque page.
+
+   HTML : <a href="admin.html" class="admin-badge" id="admin-badge">ADMIN</a>
+   ═══════════════════════════════════════════════════════════════════════ */
 .admin-badge {
-  display:        none;
+  display:        none;      /* masqué par défaut */
   align-items:    center;
   gap:            6px;
   font-family:    'Share Tech Mono', monospace;
@@ -412,9 +503,9 @@ nav a.active::after {
   background:     rgba(0,255,136,0.06);
   padding:        5px 11px;
   margin-left:    6px;
-  position:       relative;
   clip-path: polygon(6px 0%,100% 0%,calc(100% - 6px) 100%,0% 100%);
 }
+/* Dot vert pulsant à gauche du badge */
 .admin-badge::before {
   content:       '';
   width:         6px;
@@ -425,17 +516,16 @@ nav a.active::after {
   animation:     hdot-pulse 1.8s infinite;
   flex-shrink:   0;
 }
-.admin-badge.visible {
-  display: flex;
-}
+/* Affiché quand l'utilisateur est authentifié */
+.admin-badge.visible { display: flex; }
 
-/* Admin badge as link */
+/* Style lien (cliquable vers admin.html) */
 a.admin-badge {
   text-decoration: none;
   cursor: pointer;
 }
 a.admin-badge:hover {
   border-color: rgba(0,255,136,0.6);
-  box-shadow: 0 0 12px rgba(0,255,136,0.25);
-  color: #00ff88;
+  box-shadow:   0 0 12px rgba(0,255,136,0.25);
+  color:        #00ff88;
 }
