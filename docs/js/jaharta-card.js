@@ -119,7 +119,7 @@ class JahartaCard extends HTMLElement {
     const bv = document.createElement('div');
     bv.className = 'rb-val' + (ch.rank === 'SSS' ? ' sm' : '');
     /* Animation pulsante pour les rangs élevés */
-    if (ch.rank === 'SSS' || ch.rank === 'X' || ch.rank === 'Z') {
+    if (['SSS','X','T','G','G+','Z'].includes(ch.rank)) {
       bv.style.animation = 'rankPulse 2.5s infinite';
     }
     bv.textContent = ch.rank || '?';

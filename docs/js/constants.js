@@ -39,7 +39,10 @@ window.RANKS = {
   SS:  { color: '#ff006e', bg: 'rgba(255,0,110,0.2)',    level: 8  },
   SSS: { color: '#ffd60a', bg: 'rgba(255,214,10,0.16)',  level: 9  },
   X:   { color: '#e040fb', bg: 'rgba(224,64,251,0.18)',  level: 10 },
-  Z:   { color: '#ffffff', bg: 'rgba(255,255,255,0.1)',  level: 11 },
+  T:   { color: '#c0f0ff', bg: 'rgba(192,240,255,0.14)', level: 11 },
+  G:   { color: '#ffe680', bg: 'rgba(255,230,128,0.14)', level: 12 },
+  'G+':{ color: '#ffffff', bg: 'rgba(255,255,255,0.18)', level: 13 },
+  Z:   { color: '#ff6060', bg: 'rgba(255,96,96,0.16)',   level: 14 },
 };
 
 /* ── Races spécifiques disponibles dans le formulaire, par groupe ──
