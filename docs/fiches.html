@@ -72,17 +72,12 @@ window._collection=collection; window._serverTimestamp=serverTimestamp;
 window._ref=ref; window._uploadBytes=uploadBytes; window._getDownloadURL=getDownloadURL;
 window._isAdmin=false;
 /* ── Auth : détecte si un admin est connecté → badge nav + droits CRUD ── */
-onAuthStateChanged(auth,user=>{
-  window._isAdmin=!!user;
-
-  /* ── Bouton "+ Ajouter" : visible uniquement pour les admins ── */
-  const addBtn=document.getElementById('add-char-btn');
-  if(addBtn) addBtn.style.display=user?'inline-flex':'none';
-
-  const b=document.getElementById('admin-badge');
-  const l=document.querySelector('.nav-admin');
-  if(b) b.classList.toggle('visible',!!user);
-  if(l){if(user){l.textContent='⚙ Connecté';l.removeAttribute('href');l.style.cursor='default';l.style.opacity='0.55';}else{l.textContent='⚙ Connexion';l.setAttribute('href','admin.html');l.style.cursor='';l.style.opacity='';}}
+onAuthStateChanged(auth, user => {
+  /* Droits admin : bouton ajouter + boutons modifier/supprimer sur les cartes */
+  window._isAdmin = !!user;
+  const addBtn = document.getElementById('add-char-btn');
+  if(addBtn) addBtn.style.display = user ? 'inline-flex' : 'none';
+  /* Badge nav → géré par js/auth-badge.js */
 });
 /* ── Chargement temps réel des fiches validées (onSnapshot = mise à jour auto) ── */
 function loadCards(){
@@ -292,6 +287,7 @@ footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:22
 <script src="js/debug.js"></script>
 <script src="js/constants.js"></script><!-- RACES, RANKS, RACES_SPECIFIC globaux -->
 <script src="js/utils.js"></script>    <!-- sanitize, compressImage, AntiSpam, Skeleton, showToast -->
+<script type="module" src="js/auth-badge.js"></script>
 </head>
 <body>
 <div class="toast" id="toast"></div>

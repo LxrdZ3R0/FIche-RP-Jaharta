@@ -62,19 +62,15 @@ window._filters=[];   // [{id, label, color}]
 window._activeFilter='all';
 
 /* ── Auth : badge nav + affichage conditionnel des boutons admin ── */
-onAuthStateChanged(auth,user=>{
-  const _b=document.getElementById("admin-badge");
-  const _l=document.querySelector(".nav-admin");
-  if(_b) _b.classList.toggle("visible",!!user);
-  if(_l){if(user){_l.textContent="⚙ Connecté";_l.removeAttribute("href");_l.style.cursor="default";_l.style.opacity="0.55";}else{_l.textContent="⚙ Connexion";_l.setAttribute("href","admin.html");_l.style.cursor="";_l.style.opacity="";}}
-  window._isAdmin=!!user;
-  document.querySelectorAll('.admin-only').forEach(el=>el.style.display=user?'flex':'none');
-  document.querySelectorAll('.admin-actions').forEach(el=>el.style.display=user?'flex':'none');
-  document.querySelectorAll('.admin-only-block').forEach(el=>el.style.display=user?'block':'none');
-  // Re-render filter bar to show/hide admin controls (+ Filtre, ✕ delete)
-  if(typeof renderFilterBar==='function') renderFilterBar();
-  // Show/hide delete buttons on already-built PNJ cards
-  document.querySelectorAll('.pnj-del-btn').forEach(btn=>btn.style.display=user?'flex':'none');
+onAuthStateChanged(auth, user => {
+  /* Droits admin : affichage conditionnel des contrôles staff */
+  window._isAdmin = !!user;
+  document.querySelectorAll('.admin-only').forEach(el => el.style.display = user ? 'flex' : 'none');
+  document.querySelectorAll('.admin-actions').forEach(el => el.style.display = user ? 'flex' : 'none');
+  document.querySelectorAll('.admin-only-block').forEach(el => el.style.display = user ? 'block' : 'none');
+  if(typeof renderFilterBar === 'function') renderFilterBar();
+  document.querySelectorAll('.pnj-del-btn').forEach(btn => btn.style.display = user ? 'flex' : 'none');
+  /* Badge nav → géré par js/auth-badge.js */
 });
 
 /* ─── FILTRES ─────────────────────────────────────────────────────── */
@@ -486,6 +482,7 @@ footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:22
 <script src="js/debug.js"></script>
 <script src="js/constants.js"></script>
 <script src="js/utils.js"></script>
+<script type="module" src="js/auth-badge.js"></script>
 </head>
 <body>
 <div class="toast" id="toast"></div>

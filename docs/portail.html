@@ -250,25 +250,6 @@ footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:22
 })();
 </script>
 
-<script type="module">
-/* ── Badge admin : détecte la connexion et affiche/cache les éléments staff ──
-   Utilise l'instance Firebase [DEFAULT] (même que admin.html et fiches.html)
-   pour partager la session entre toutes les pages du site. */
-import{initializeApp,getApps}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import{getAuth,onAuthStateChanged}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-const _cfg={apiKey:"AIzaSyAru7qZX8Gu_b8Y3oNDV-a5PmkrrkRjkcs",authDomain:"jaharta-rp.firebaseapp.com",projectId:"jaharta-rp",storageBucket:"jaharta-rp.firebasestorage.app",messagingSenderId:"217075417489",appId:"1:217075417489:web:4d1e2df422a5cd42411a30"};
-/* Réutilise l'app [DEFAULT] si elle existe déjà, sinon la crée */
-const _app  = getApps().length ? getApps()[0] : initializeApp(_cfg);
-const _auth = getAuth(_app);
-onAuthStateChanged(_auth, user => {
-  const b = document.getElementById('admin-badge');
-  const l = document.querySelector('.nav-admin');
-  if(b) b.classList.toggle('visible', !!user);
-  if(l){
-    if(user){ l.textContent='⚙ Connecté'; l.removeAttribute('href'); l.style.cursor='default'; l.style.opacity='0.55'; }
-    else    { l.textContent='⚙ Connexion'; l.setAttribute('href','admin.html'); l.style.cursor=''; l.style.opacity=''; }
-  }
-});
-</script>
+<script type="module" src="js/auth-badge.js"></script>
 </body>
 </html>
