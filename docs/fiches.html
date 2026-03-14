@@ -185,7 +185,13 @@ loadCards();
 .rl-title{font-family:'Share Tech Mono',monospace;font-size:0.58rem;color:var(--muted);letter-spacing:0.2em;text-transform:uppercase;margin-right:8px;flex-shrink:0;}
 .rl-pill{font-family:'Orbitron',sans-serif;font-weight:700;font-size:0.6rem;letter-spacing:0.1em;padding:3px 11px;border:1px solid;cursor:default;}
 .rl-note{font-family:'Share Tech Mono',monospace;font-size:0.54rem;color:var(--muted);margin-left:auto;letter-spacing:0.1em;}
-.race-filter{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:36px;padding-bottom:18px;border-bottom:1px solid var(--border);}
+.race-filter{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:0;padding-bottom:18px;border-bottom:none;}
+/* ── Filtre par rang — même style que race-filter ── */
+.rank-filter{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:36px;padding-top:12px;padding-bottom:18px;border-bottom:1px solid var(--border);}
+/* ── Étiquette de section de filtre ── */
+.filter-group-label{font-family:'Share Tech Mono',monospace;font-size:.58rem;color:var(--muted);letter-spacing:.2em;text-transform:uppercase;margin-right:6px;flex-shrink:0;display:flex;align-items:center;}
+/* ── Âge sur la carte personnage ── */
+.card-age{font-family:'Share Tech Mono',monospace;font-size:.56rem;letter-spacing:.18em;color:var(--muted);margin-bottom:7px;}
 .race-btn{font-family:'Share Tech Mono',monospace;font-size:0.64rem;letter-spacing:0.13em;text-transform:uppercase;background:transparent;border:1px solid;padding:7px 14px;cursor:pointer;clip-path:polygon(7px 0%,100% 0%,calc(100% - 7px) 100%,0% 100%);display:flex;align-items:center;gap:7px;position:relative;overflow:hidden;transition:all 0.22s;}
 .race-btn::before{content:'';position:absolute;left:0;top:0;width:3px;height:100%;background:currentColor;opacity:0;transition:opacity .22s;}
 .race-btn:hover::before,.race-btn.active::before{opacity:1;}
@@ -415,8 +421,9 @@ footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:22
     <span class="rl-note">FAIBLE ─── ABSOLU</span>
   </div>
 
+  <!-- ── Filtre par groupe de race ── -->
   <div class="race-filter">
-    <span class="rl-title" style="font-family:'Share Tech Mono',monospace;font-size:0.58rem;color:var(--muted);letter-spacing:0.2em;text-transform:uppercase;margin-right:6px;flex-shrink:0;display:flex;align-items:center;">Groupes :</span>
+    <span class="filter-group-label">Race :</span>
     <button class="race-btn active" data-race="all" onclick="filterRace('all',this)"><span class="rdot" style="background:var(--text);box-shadow:none"></span>Tous<span class="rcnt" id="cnt-all">0</span></button>
     <button class="race-btn" data-race="humanoid" onclick="filterRace('humanoid',this)"><span class="rdot"></span>Humanoids<span class="rcnt" id="cnt-humanoid">0</span></button>
     <button class="race-btn" data-race="zooid" onclick="filterRace('zooid',this)"><span class="rdot"></span>Zooids<span class="rcnt" id="cnt-zooid">0</span></button>
@@ -425,6 +432,23 @@ footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:22
     <button class="race-btn" data-race="artificial" onclick="filterRace('artificial',this)"><span class="rdot"></span>Artificial<span class="rcnt" id="cnt-artificial">0</span></button>
     <button class="race-btn" data-race="semiliquid" onclick="filterRace('semiliquid',this)"><span class="rdot"></span>Semi-Liquid<span class="rcnt" id="cnt-semiliquid">0</span></button>
     <button class="race-btn" data-race="undead" onclick="filterRace('undead',this)"><span class="rdot"></span>Undead<span class="rcnt" id="cnt-undead">0</span></button>
+  </div>
+
+  <!-- ── Filtre par rang de puissance ── -->
+  <div class="rank-filter">
+    <span class="filter-group-label">Rang :</span>
+    <button class="race-btn active" data-rank="all" onclick="filterRank('all',this)" style="color:var(--text);border-color:rgba(200,224,240,0.22)">Tous</button>
+    <button class="race-btn" data-rank="F"   onclick="filterRank('F',this)"   style="color:var(--rank-f);border-color:rgba(107,114,128,0.3)">F</button>
+    <button class="race-btn" data-rank="E"   onclick="filterRank('E',this)"   style="color:var(--rank-e);border-color:rgba(156,163,175,0.3)">E</button>
+    <button class="race-btn" data-rank="D"   onclick="filterRank('D',this)"   style="color:var(--rank-d);border-color:rgba(96,165,250,0.3)">D</button>
+    <button class="race-btn" data-rank="C"   onclick="filterRank('C',this)"   style="color:var(--rank-c);border-color:rgba(52,211,153,0.3)">C</button>
+    <button class="race-btn" data-rank="B"   onclick="filterRank('B',this)"   style="color:var(--rank-b);border-color:rgba(251,191,36,0.3)">B</button>
+    <button class="race-btn" data-rank="A"   onclick="filterRank('A',this)"   style="color:var(--rank-a);border-color:rgba(249,115,22,0.3)">A</button>
+    <button class="race-btn" data-rank="S"   onclick="filterRank('S',this)"   style="color:var(--rank-s);border-color:rgba(239,68,68,0.35)">S</button>
+    <button class="race-btn" data-rank="SS"  onclick="filterRank('SS',this)"  style="color:var(--rank-ss);border-color:rgba(255,0,110,0.35)">SS</button>
+    <button class="race-btn" data-rank="SSS" onclick="filterRank('SSS',this)" style="color:var(--rank-sss);border-color:rgba(255,214,10,0.4)">SSS</button>
+    <button class="race-btn" data-rank="X"   onclick="filterRank('X',this)"   style="color:var(--rank-x);border-color:rgba(224,64,251,0.4)">X</button>
+    <button class="race-btn" data-rank="Z"   onclick="filterRank('Z',this)"   style="color:var(--rank-z);border-color:rgba(255,255,255,0.3)">Z</button>
   </div>
 
   <div class="cards-grid" id="cards-container">
@@ -447,6 +471,10 @@ footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:22
       <div class="frow">
         <div class="fg"><label class="fl">Prénom *</label><input type="text" class="fi" placeholder="Ex: Vexara" id="f-fn"></div>
         <div class="fg"><label class="fl">Nom *</label><input type="text" class="fi" placeholder="Ex: NISHI" id="f-ln"></div>
+      </div>
+      <div class="frow">
+        <div class="fg"><label class="fl">Âge</label><input type="text" class="fi" placeholder="Ex: 23 ans, Inconnu…" id="f-age"></div>
+        <div class="fg"><!-- espaceur --></div>
       </div>
       <div class="frow">
         <div class="fg"><label class="fl">Groupe de Race *</label>
@@ -558,26 +586,26 @@ footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:22
    DONNÉES STATIQUES — Races et Rangs
    ═══════════════════════════════════════════════════ */
 
-/* Sous-races disponibles pour chaque groupe */
-const RACES_SPECIFIC = {
-  humanoid:  ['Human','Elf','Vampire','Dwarf','Orc','Oni'],
-  zooid:     ['Neko','Doggo','Bunny','Draph','Lamia','Cowie','Kakuen','Dormouse','Jinko','Gyoubu','Xiongmao','Siren','Moth'],
-  mythzooid: ['Qilin','Dragon','Minotaur','Hellhound','Sphynx','Phoenix','Fenrir','Unicorn','Kitsune','Salamander','Hakutaku'],
-  demon:     ['Tiefling','Succubus','Devil'],
-  artificial:['Android','Shuma'],
-  semiliquid:['Slime','Nureonago'],
-  undead:    ['Jiangshi','Joker'],
-};
-/** Remplit le select 'Race spécifique' selon le groupe choisi */
+/* ── RACES_SPECIFIC chargé depuis js/constants.js (window.RACES_SPECIFIC) ── */
+
+/**
+ * Remplit le select "Race spécifique" selon le groupe de race choisi.
+ * Utilise window.RACES_SPECIFIC défini dans constants.js.
+ * @param {string} group - Clé du groupe (humanoid, zooid, etc.)
+ */
 window.updateRaceSpecific = function(group){
   const sel = document.getElementById('f-race-specific');
   sel.innerHTML = '';
-  if(!group){ sel.disabled=true; sel.innerHTML='<option value="">— Choisir d\'abord un groupe —</option>'; return; }
+  if(!group){
+    sel.disabled = true;
+    sel.innerHTML = '<option value="">— Choisir d\'abord un groupe —</option>';
+    return;
+  }
   sel.disabled = false;
   sel.innerHTML = '<option value="">— Choisir une race —</option>';
-  (RACES_SPECIFIC[group]||[]).forEach(r=>{
-    const o=document.createElement('option');
-    o.value=r; o.textContent=r;
+  (window.RACES_SPECIFIC[group] || []).forEach(r => {
+    const o = document.createElement('option');
+    o.value = r; o.textContent = r;
     sel.appendChild(o);
   });
 };
@@ -628,6 +656,7 @@ window.openEditFiche = async function(id){
 
   // Populate modal fields with correct IDs
   document.getElementById('f-fn').value         = ch.firstname  || '';
+  document.getElementById('f-age').value        = ch.age        || '';
   document.getElementById('f-ln').value         = ch.lastname   || '';
   document.getElementById('f-race').value       = ch.race       || '';
   document.getElementById('f-rank').value       = ch.rank       || 'F';
@@ -692,8 +721,9 @@ window.openEditFiche = async function(id){
         cha:  Math.min(9999,parseInt(document.getElementById('f-cha').value)||0),
         aura: Math.min(9999,parseInt(document.getElementById('f-aura').value)||0),
       };
+      const _age = document.getElementById('f-age').value.trim();
       await window._updateDoc(window._doc(window._db,'fiches',id),{
-        firstname,lastname,race,raceSpecific,rank,desc,links,stats:_updStats,powers:getPowers(),photoUrl:finalPhoto,updatedAt:new Date()
+        firstname,lastname,age:_age,race,raceSpecific,rank,desc,links,stats:_updStats,powers:getPowers(),photoUrl:finalPhoto,updatedAt:new Date()
       });
       closeModal();
       showToast('✓ Fiche mise à jour !');
@@ -713,14 +743,76 @@ window.openEditFiche = async function(id){
 function animateCount(target){const el=document.getElementById('count-chars');let n=0;const iv=setInterval(()=>{n++;el.textContent=n;if(n>=target)clearInterval(iv);},80);}
 /** Recalcule les compteurs par race affichés dans la barre de filtre */
 /* ── updateCounts : met à jour les compteurs de filtres par race ── */
-function updateCounts(){const cards=document.querySelectorAll('.rp-card[data-race]');const t={};cards.forEach(c=>{t[c.dataset.race]=(t[c.dataset.race]||0)+1;});let all=0;Object.keys(t).forEach(r=>{const el=document.getElementById('cnt-'+r);if(el)el.textContent=t[r];all+=t[r];});document.getElementById('cnt-all').textContent=all;}
+function updateCounts() {
+  const cards = document.querySelectorAll('.rp-card[data-race]');
+  const byRace = {};
+  cards.forEach(c => {
+    byRace[c.dataset.race] = (byRace[c.dataset.race] || 0) + 1;
+  });
+  let all = 0;
+  Object.keys(byRace).forEach(r => {
+    const el = document.getElementById('cnt-' + r);
+    if (el) el.textContent = byRace[r];
+    all += byRace[r];
+  });
+  document.getElementById('cnt-all').textContent = all;
+}
 /**
  * Filtre les cartes visibles par groupe de race.
  * @param {string}      race - Valeur du filtre ('all' ou nom du groupe)
  * @param {HTMLElement} btn  - Bouton cliqué (pour gérer la classe .active)
  */
-/* ── filterRace : affiche/cache les cartes selon la race sélectionnée ── */
-function filterRace(race,btn){document.querySelectorAll('.race-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');let v=0;document.querySelectorAll('.rp-card[data-race]').forEach(c=>{const show=race==='all'||c.dataset.race===race;c.style.display=show?'':'none';if(show)v++;});document.getElementById('no-results').style.display=v===0?'block':'none';}
+/* ════════════════════════════════════════════════════════════════
+   FILTRES — Race et Rang combinés
+   Les deux filtres s'appliquent simultanément.
+   _activeRace et _activeRank conservent l'état courant.
+   ════════════════════════════════════════════════════════════════ */
+let _activeRace = 'all';
+let _activeRank = 'all';
+
+/**
+ * Applique les deux filtres actifs (race + rang) sur toutes les cartes.
+ * Une carte est visible seulement si elle passe les deux filtres.
+ */
+function applyFilters() {
+  let visible = 0;
+  /* jaharta-card a display:contents — on cible les .rp-card internes */
+  document.querySelectorAll('.rp-card[data-race]').forEach(card => {
+    const matchRace = _activeRace === 'all' || card.dataset.race  === _activeRace;
+    const matchRank = _activeRank === 'all' || card.dataset.rank  === _activeRank;
+    const show      = matchRace && matchRank;
+    /* On remonte au jaharta-card parent pour cacher l'élément entier */
+    const wrapper   = card.closest('jaharta-card') || card;
+    wrapper.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+  document.getElementById('no-results').style.display = visible === 0 ? 'block' : 'none';
+}
+
+/**
+ * Filtre par groupe de race.
+ * @param {string}      race - 'all' ou nom du groupe (humanoid, zooid…)
+ * @param {HTMLElement} btn  - Bouton cliqué pour gérer la classe .active
+ */
+function filterRace(race, btn) {
+  _activeRace = race;
+  /* Retire .active uniquement des boutons de race */
+  document.querySelectorAll('.race-btn[data-race]').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  applyFilters();
+}
+
+/**
+ * Filtre par rang de puissance.
+ * @param {string}      rank - 'all' ou rang (F, E, D, … Z)
+ * @param {HTMLElement} btn  - Bouton cliqué
+ */
+function filterRank(rank, btn) {
+  _activeRank = rank;
+  document.querySelectorAll('.race-btn[data-rank]').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  applyFilters();
+}
 /**
  * Affiche une notification temporaire.
  * @param {string} msg  - Texte à afficher
@@ -819,6 +911,7 @@ async function submitCard(){
   /* sanitize() retire les balises HTML des champs texte avant stockage */
   const fn          = sanitize(document.getElementById('f-fn').value.trim());
   const ln          = sanitize(document.getElementById('f-ln').value.trim());
+  const age         = sanitize(document.getElementById('f-age').value.trim());
   const race        = document.getElementById('f-race').value;
   const raceSpecific= document.getElementById('f-race-specific').value;
   const rank        = document.getElementById('f-rank').value;
@@ -853,7 +946,7 @@ async function submitCard(){
   btn.disabled=true;btn.textContent='⟳ Envoi en cours...';
 
   const data={
-    firstname:fn,lastname:ln,race,rank,bio,desc:bio,
+    firstname:fn,lastname:ln,age,race,rank,bio,desc:bio,
     linkUrl,linkType:'Lien',
     discord,stats,powers:getPowers(),
     photoUrl, // vide si fichier photo, sera rempli par submitToFirebase
@@ -873,7 +966,7 @@ async function submitCard(){
   btn.disabled=false;btn.textContent='▸ Soumettre pour validation';
 
   // Reset complet
-  ['f-fn','f-ln','f-bio','f-link','f-discord','f-photo-url'].forEach(id=>document.getElementById(id).value='');
+  ['f-fn','f-ln','f-age','f-bio','f-link','f-discord','f-photo-url'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('f-race').value='';
   updateRaceSpecific('');
   ['f-str','f-agi','f-spd','f-int','f-mana','f-res','f-cha','f-aura'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='0';});

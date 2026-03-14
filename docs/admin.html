@@ -107,6 +107,8 @@ onAuthStateChanged(auth, async user => {
 
     renderAdminHeader();
     showScreen('panel');
+    /* Informe Alpine du rôle pour x-show sur l'onglet Logs */
+    setTimeout(() => window._setAdminTab?.({ role: currentAdmin.role }), 50);
     loadAllFiches();
     loadPNJ();
     if (currentAdmin.role === 'admin') loadLogs();
@@ -258,14 +260,21 @@ function showScreen(name) {
   document.getElementById('panel-screen').style.display   = name==='panel'   ? 'block' : 'none';
 }
 
+/* ── Expose une fonction pour que le module Firebase mette à jour Alpine ── */
+window._setAdminTab = (data) => {
+  const el = document.getElementById('panel-screen');
+  if (!el || !el._x_dataStack) return;
+  const alpineData = Alpine.$data(el);
+  if (alpineData) alpineData.logsVisible = (data.role === 'admin');
+};
+
 function renderAdminHeader() {
   if (!currentAdmin) return;
   document.getElementById('admin-name').textContent = currentAdmin.name;
   const rb = document.getElementById('role-badge');
   rb.textContent = currentAdmin.role.toUpperCase();
   rb.className   = 'role-badge role-' + currentAdmin.role;
-  const logsTab = document.getElementById('tab-btn-logs');
-  if (logsTab) logsTab.style.display = currentAdmin.role === 'admin' ? 'flex' : 'none';
+  /* Visibilité onglet Logs → gérée par Alpine (logsVisible dans x-data) */
 }
 </script>
 
@@ -340,7 +349,7 @@ function renderAdminHeader() {
 
 /* ── Contenu onglets ── */
 .tab-content{display:none;padding:28px 36px;}
-.tab-content.active{display:block;}
+/* .tab-content.active → remplacé par x-show Alpine */
 .tab-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;padding-bottom:14px;border-bottom:1px solid var(--border);}
 .tab-title{font-family:'Orbitron',sans-serif;font-size:.75rem;font-weight:700;letter-spacing:.2em;color:var(--text);text-transform:uppercase;}
 .tab-count{font-family:'Share Tech Mono',monospace;font-size:.6rem;color:var(--muted);letter-spacing:.15em;}
@@ -400,6 +409,7 @@ function renderAdminHeader() {
 /* ── Empty / Toast ── */
 .empty-list{text-align:center;padding:56px 24px;font-family:'Share Tech Mono',monospace;color:var(--muted);letter-spacing:.16em;font-size:.72rem;line-height:2.2;}
 .empty-list-icon{font-size:2rem;display:block;margin-bottom:12px;opacity:.15;}
+[x-cloak]{display:none!important}
 .toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--dark2);border:1px solid var(--border);font-family:'Share Tech Mono',monospace;font-size:.7rem;letter-spacing:.14em;color:var(--text);padding:14px 28px;z-index:9000;transition:transform .3s,opacity .3s;opacity:0;clip-path:polygon(10px 0%,100% 0%,calc(100% - 10px) 100%,0% 100%);}
 .toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
 .toast.success{border-color:rgba(0,255,136,.5);color:var(--green);}
@@ -409,6 +419,8 @@ function renderAdminHeader() {
 @media(max-width:900px){.fiche-row{grid-template-columns:70px 1fr;}.fiche-actions{grid-column:1/-1;flex-direction:row;flex-wrap:wrap;padding:10px 14px;min-width:unset;}.admin-stats{grid-template-columns:repeat(3,1fr);}.log-row{grid-template-columns:100px 70px 1fr 120px;}.log-date{display:none;}}
 @media(max-width:650px){.admin-header{padding:0 16px;}.admin-tabs{overflow-x:auto;}.tab-content{padding:20px 16px;}.admin-stats{padding:20px 16px 0;grid-template-columns:repeat(2,1fr);}.admin-meta{gap:8px;}.admin-user{display:none;}.log-row{grid-template-columns:90px 1fr 100px;}.log-role,.log-by{display:none;}}
 </style>
+<!-- Alpine.js — logique UI réactive (onglets) sans build step -->
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
 <script src="js/debug.js"></script>
 <script src="js/constants.js"></script>
 <script src="js/utils.js"></script>
@@ -456,7 +468,7 @@ function renderAdminHeader() {
 </div>
 
 <!-- ══════════ PANEL ══════════ -->
-<div id="panel-screen">
+<div id="panel-screen" x-data="{ tab: 'pending', logsVisible: false }">
 
   <div class="admin-header">
     <div class="admin-logo">JAHARTA <span>//</span> ADMIN</div>
@@ -490,20 +502,31 @@ function renderAdminHeader() {
   </div>
 
   <div class="admin-tabs">
-    <button class="admin-tab active" id="tab-btn-pending" onclick="switchTab('pending',this)">
+    <button class="admin-tab" id="tab-btn-pending"
+        :class="{ active: tab === 'pending' }"
+        @click="tab = 'pending'">
       En attente <span class="tab-badge" id="badge-pending"></span>
     </button>
-    <button class="admin-tab" onclick="switchTab('approved',this)">Validées</button>
-    <button class="admin-tab" onclick="switchTab('rejected',this)">Rejetées</button>
-    <button class="admin-tab" onclick="switchTab('pnj',this)">
+    <button class="admin-tab"
+        :class="{ active: tab === 'approved' }"
+        @click="tab = 'approved'">Validées</button>
+    <button class="admin-tab"
+        :class="{ active: tab === 'rejected' }"
+        @click="tab = 'rejected'">Rejetées</button>
+    <button class="admin-tab"
+        :class="{ active: tab === 'pnj' }"
+        @click="tab = 'pnj'">
       PNJ <span class="tab-badge" id="badge-pnj" style="background:#b06eff"></span>
     </button>
-    <button class="admin-tab" id="tab-btn-logs" style="display:none" onclick="switchTab('logs',this)">
+    <button class="admin-tab" id="tab-btn-logs"
+        x-cloak x-show="logsVisible"
+        :class="{ active: tab === 'logs' }"
+        @click="tab = 'logs'">
       Logs <span style="font-family:'Share Tech Mono',monospace;font-size:.5rem;color:var(--muted);padding:2px 6px;border:1px solid rgba(0,245,255,.2)">ADMIN</span>
     </button>
   </div>
 
-  <div class="tab-content active" id="tab-pending">
+  <div class="tab-content" id="tab-pending" x-show="tab === 'pending'" x-cloak>
     <div class="tab-header">
       <div class="tab-title">⟳ Fiches en attente</div>
       <div class="tab-count" id="lbl-pending">—</div>
@@ -513,7 +536,7 @@ function renderAdminHeader() {
     </div>
   </div>
 
-  <div class="tab-content" id="tab-approved">
+  <div class="tab-content" id="tab-approved" x-show="tab === 'approved'" x-cloak>
     <div class="tab-header">
       <div class="tab-title">✓ Fiches validées</div>
       <div class="tab-count" id="lbl-approved">—</div>
@@ -523,7 +546,7 @@ function renderAdminHeader() {
     </div>
   </div>
 
-  <div class="tab-content" id="tab-rejected">
+  <div class="tab-content" id="tab-rejected" x-show="tab === 'rejected'" x-cloak>
     <div class="tab-header">
       <div class="tab-title">✗ Fiches rejetées</div>
       <div class="tab-count" id="lbl-rejected">—</div>
@@ -533,7 +556,7 @@ function renderAdminHeader() {
     </div>
   </div>
 
-  <div class="tab-content" id="tab-pnj">
+  <div class="tab-content" id="tab-pnj" x-show="tab === 'pnj'" x-cloak>
     <div class="tab-header">
       <div class="tab-title">◈ PNJ</div>
       <a href="pnj.html" target="_blank" class="action-btn view">↗ Page PNJ publique</a>
@@ -543,7 +566,7 @@ function renderAdminHeader() {
     </div>
   </div>
 
-  <div class="tab-content" id="tab-logs">
+  <div class="tab-content" id="tab-logs" x-show="tab === 'logs'" x-cloak>
     <div class="tab-header">
       <div class="tab-title">⬡ Historique des actions</div>
       <div class="tab-count" id="lbl-logs">—</div>
@@ -563,12 +586,7 @@ function renderAdminHeader() {
    FONCTIONS DOM — non-module (accès à window._adminRole)
    ════════════════════════════════════════════════════════════════════ */
 
-function switchTab(name, btn) {
-  document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-  btn.classList.add('active');
-  document.getElementById('tab-' + name).classList.add('active');
-}
+/* switchTab() → remplacé par Alpine.js (@click + :class + x-show) */
 
 function renderTable(containerId, fiches, type) {
   const el   = document.getElementById(containerId);
