@@ -14,14 +14,13 @@
 
   Firebase (module ESM) :
   - Firestore : collection 'fiches' (status=validee)
-  - Storage   : dossiers photos/ et fiches/
+  - Storage   : dossier photos/
   - Auth      : badge admin dans nav
 
   Globals exposés pour les scripts non-module :
   - window._db, window._storage, window._isAdmin
   - window._doc, window._getDoc, window._updateDoc, window._deleteDoc
   - window._ref, window._uploadBytes, window._getDownloadURL
-  - window.submitToFirebase(data, photoFile, ficheFile)
   ═══════════════════════════════════════════════════════════════════════
 -->
 <html lang="fr">
@@ -66,13 +65,20 @@ enableIndexedDbPersistence(db).catch(err => {
 });
 const auth=getAuth(app);
 /* ── Exposition des API Firebase en globals pour les scripts non-module ── */
-window._db=db;window._storage=storage;window._deleteDoc=deleteDoc;
-window._doc=doc;window._getDoc=getDoc;window._updateDoc=updateDoc;
-window._ref=ref;window._uploadBytes=uploadBytes;window._getDownloadURL=getDownloadURL;
+window._db=db; window._storage=storage;
+window._deleteDoc=deleteDoc; window._doc=doc; window._getDoc=getDoc;
+window._updateDoc=updateDoc; window._addDoc=addDoc;
+window._collection=collection; window._serverTimestamp=serverTimestamp;
+window._ref=ref; window._uploadBytes=uploadBytes; window._getDownloadURL=getDownloadURL;
 window._isAdmin=false;
 /* ── Auth : détecte si un admin est connecté → badge nav + droits CRUD ── */
 onAuthStateChanged(auth,user=>{
   window._isAdmin=!!user;
+
+  /* ── Bouton "+ Ajouter" : visible uniquement pour les admins ── */
+  const addBtn=document.getElementById('add-char-btn');
+  if(addBtn) addBtn.style.display=user?'inline-flex':'none';
+
   const b=document.getElementById('admin-badge');
   const l=document.querySelector('.nav-admin');
   if(b) b.classList.toggle('visible',!!user);
@@ -118,50 +124,6 @@ function loadCards(){
   }
 }
 
-/* ── FIX : submitToFirebase prend maintenant photoFile ET ficheFile séparément ── */
-/**
- * Soumet une fiche à Firestore après upload des fichiers.
- * @param {Object} data       - Données du formulaire (sans les fichiers)
- * @param {File}   photoFile  - Photo du personnage (optionnel)
- * @param {File}   ficheFile  - Fichier fiche HTML/PDF (optionnel)
- */
-window.submitToFirebase=async function(data, photoFile, ficheFile){
-  // Photo : priorité au fichier uploadé, sinon URL
-  let photoUrl="";
-  if(photoFile){
-    try{
-      /* compressImage réduit la photo (max 1200×1600, JPEG 82%)
-         avant l'envoi vers Firebase Storage — économise bande passante et quota */
-      const compressed = await compressImage(photoFile);
-      const r2=ref(storage,`photos/${Date.now()}_${photoFile.name.replace(/\.[^.]+$/,'.jpg')}`);
-      const snap=await uploadBytes(r2,compressed);
-      photoUrl=await getDownloadURL(snap.ref);
-    }catch(e){console.warn("Upload photo:",e.message);}
-  } else if(data.photoUrl){
-    photoUrl=data.photoUrl;
-  }
-
-  // Fichier fiche (HTML/PDF/DOCX etc.)
-  let ficheFileUrl="";
-  let ficheFileName="";
-  if(ficheFile){
-    try{
-      const r3=ref(storage,`fiches/${Date.now()}_${ficheFile.name}`);
-      const snap2=await uploadBytes(r3,ficheFile);
-      ficheFileUrl=await getDownloadURL(snap2.ref);
-      ficheFileName=ficheFile.name;
-    }catch(e){console.warn("Upload fiche:",e.message);}
-  }
-
-  await addDoc(collection(db,"fiches"),{
-    ...data,
-    photoUrl,
-    ficheFileUrl,
-    ficheFileName,
-    status:"en_attente",
-    createdAt:serverTimestamp()
-  });
-};
 loadCards();
 </script>
 
@@ -292,8 +254,6 @@ loadCards();
 .mac{height:3px;background:linear-gradient(90deg,var(--cyan),var(--magenta));}
 .mi{padding:28px;}
 .mt{font-family:'Orbitron',sans-serif;font-size:.82rem;font-weight:700;letter-spacing:.25em;color:var(--cyan);text-transform:uppercase;margin-bottom:8px;}
-.msub{font-family:'Share Tech Mono',monospace;font-size:.6rem;color:var(--muted);letter-spacing:.12em;margin-bottom:22px;padding:10px 14px;background:rgba(0,245,255,0.04);border:1px solid rgba(0,245,255,0.15);line-height:1.7;}
-.msub strong{color:#fff;}
 .fg{margin-bottom:14px;}
 .fl{display:block;font-family:'Share Tech Mono',monospace;font-size:.58rem;letter-spacing:.2em;color:var(--muted);text-transform:uppercase;margin-bottom:5px;}
 .fi,.fs,.fta{width:100%;background:rgba(0,245,255,0.03);border:1px solid var(--border);color:var(--text);font-family:'Rajdhani',sans-serif;font-size:.9rem;padding:9px 12px;outline:none;transition:border-color .2s,box-shadow .2s;}
@@ -308,19 +268,6 @@ loadCards();
 .photo-drop img.prev-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
 .photo-drop input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;}
 .pdtxt{font-family:'Share Tech Mono',monospace;font-size:.58rem;color:var(--muted);letter-spacing:.12em;text-align:center;pointer-events:none;}
-
-/* Fiche file drop */
-.fiche-drop{width:100%;background:rgba(0,245,255,0.03);border:1px dashed var(--border);padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:all .2s;position:relative;}
-.fiche-drop:hover{border-color:rgba(0,245,255,0.4);background:rgba(0,245,255,0.05);}
-.fiche-drop input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
-.fiche-drop-ico{font-size:1.4rem;opacity:.3;flex-shrink:0;transition:opacity .2s;}
-.fiche-drop-main{flex:1;}
-.fiche-drop-label{font-family:'Share Tech Mono',monospace;font-size:.58rem;color:var(--muted);letter-spacing:.12em;display:block;margin-bottom:3px;transition:color .2s;}
-.fiche-drop-formats{font-family:'Share Tech Mono',monospace;font-size:.5rem;color:var(--muted);letter-spacing:.1em;opacity:.55;}
-.fiche-drop.has-file{border-color:rgba(0,245,255,0.35);border-style:solid;background:rgba(0,245,255,0.06);}
-.fiche-drop.has-file .fiche-drop-ico{opacity:1;}
-.fiche-drop.has-file .fiche-drop-label{color:var(--cyan);}
-.fiche-name-tag{display:none;margin-top:7px;font-family:'Share Tech Mono',monospace;font-size:.54rem;color:var(--cyan);letter-spacing:.1em;padding:4px 9px;border:1px solid rgba(0,245,255,0.22);background:rgba(0,245,255,0.05);word-break:break-all;}
 
 .bsub{width:100%;font-family:'Orbitron',sans-serif;font-size:.68rem;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:var(--dark);background:var(--cyan);border:none;padding:13px;cursor:pointer;margin-top:6px;clip-path:polygon(12px 0%,100% 0%,calc(100% - 12px) 100%,0% 100%);transition:background .2s,box-shadow .2s;}
 .bsub:hover{background:#fff;box-shadow:0 0 24px var(--cyan);}
@@ -340,19 +287,6 @@ footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:22
 @media(max-width:880px){header{padding:0 16px}nav a span{display:none}.page-wrap{padding:32px 16px}.page-hero{padding:36px 16px}footer{flex-direction:column;gap:10px;text-align:center;padding:20px 16px}.frow{grid-template-columns:1fr}}
 
 /* ── Guide étapes (depuis accueil) ── */
-.guide-section{margin-top:36px;padding-top:32px;border-top:1px solid var(--border);}
-.sh{display:flex;align-items:center;gap:16px;margin-bottom:20px;}
-.sh-num{font-family:'Share Tech Mono',monospace;font-size:.58rem;color:var(--muted);letter-spacing:.2em;}
-.sh h2{font-family:'Orbitron',sans-serif;font-weight:700;font-size:.95rem;letter-spacing:.14em;color:#fff;}
-.sh-line{flex:1;height:1px;background:var(--border);}
-.guide-grid{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--border);}
-.gstep{padding:22px 18px;border-right:1px solid var(--border);position:relative;overflow:hidden;}
-.gstep:last-child{border-right:none;}
-.gstep::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--cyan),transparent);}
-.gnum{font-family:'Orbitron',sans-serif;font-size:1.6rem;font-weight:900;color:var(--border);line-height:1;margin-bottom:10px;}
-.gtitle{font-family:'Orbitron',sans-serif;font-size:.7rem;font-weight:700;letter-spacing:.1em;color:var(--cyan);margin-bottom:8px;}
-.gtext{font-family:'Rajdhani',sans-serif;font-size:.85rem;color:var(--muted);line-height:1.6;}
-@media(max-width:880px){.guide-grid{grid-template-columns:1fr 1fr}.gstep{border-right:none;border-bottom:1px solid var(--border)}.gstep:last-child{border-bottom:none}}
 
 </style>
 <script src="js/debug.js"></script>
@@ -382,25 +316,13 @@ footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:22
       <p class="ph-sub">Tous les personnages joueurs validés par les administrateurs Jaharta</p>
     </div>
     <div class="ph-stats">
-      <div class="phs" style="display:flex;align-items:center;gap:12px;"><span class="phs-num" id="count-chars">–</span><span class="phs-lbl">Personnages</span><button class="add-btn" id="add-char-btn" onclick="openModal()">+ Ajouter</button></div>
+      <div class="phs" style="display:flex;align-items:center;gap:12px;"><span class="phs-num" id="count-chars">–</span><span class="phs-lbl">Personnages</span><!-- Bouton visible uniquement pour les admins (affiché via JS onAuthStateChanged) -->
+        <button class="add-btn" id="add-char-btn" onclick="openModal()" style="display:none">+ Ajouter une fiche</button></div>
       <div class="phs"><span class="phs-num"><span class="hdot"></span>LIVE</span><span class="phs-lbl">Statut</span></div>
     </div>
   </div>
 </div>
 
-<!-- ══════════ GUIDE 4 ÉTAPES ══════════
-     Explique le processus de soumission -->
-<div style="position:relative;z-index:1;padding:0 44px;max-width:1380px;margin:0 auto;">
-  <div class="guide-section">
-    <div class="sh"><span class="sh-num">// GUIDE</span><h2>Comment ajouter votre fiche</h2><div class="sh-line"></div></div>
-    <div class="guide-grid">
-      <div class="gstep"><div class="gnum">01</div><div class="gtitle">Créer votre fiche</div><p class="gtext">Choisissez votre format : HTML, Google Doc, Google Sites ou Canva. Préparez le nom, la race, le rang et la biographie de votre personnage.</p></div>
-      <div class="gstep"><div class="gnum">02</div><div class="gtitle">Préparer la photo</div><p class="gtext">Trouvez une illustration pour votre personnage. Elle sera affichée en preview sur le registre. Format recommandé : portrait ou carré, bonne résolution.</p></div>
-      <div class="gstep"><div class="gnum">03</div><div class="gtitle">Soumettre</div><p class="gtext">Cliquez sur <strong style="color:var(--cyan)">+ Ajouter</strong> et remplissez le formulaire. Votre fiche est envoyée en attente de validation admin.</p></div>
-      <div class="gstep"><div class="gnum">04</div><div class="gtitle">Validation</div><p class="gtext">Un administrateur vérifie votre fiche. Une fois approuvée, elle apparaît automatiquement sur le registre, visible par toute la communauté Jaharta.</p></div>
-    </div>
-  </div>
-</div>
 
 <!-- ══════════ GRILLE DES CARTES ══════════
      Race-filter + cards-grid (rempli dynamiquement par <jaharta-card>) -->
@@ -465,8 +387,8 @@ footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:22
     <div class="mac"></div>
     <button class="mclose" onclick="closeModal()">✕</button>
     <div class="mi">
-      <div class="mt">// Soumettre un Personnage</div>
-      <div class="msub">▸ Votre fiche sera examinée par un admin avant publication.<br><strong>Délai habituel : 24-48h.</strong></div>
+      <div class="mt" id="modal-title">// Ajouter un Personnage</div>
+      <!-- Sous-titre : vide en mode ajout admin, rempli en mode édition -->
 
       <div class="frow">
         <div class="fg"><label class="fl">Prénom *</label><input type="text" class="fi" placeholder="Ex: Vexara" id="f-fn"></div>
@@ -526,19 +448,6 @@ footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:22
         <input type="url" class="fi" placeholder="https://..." id="f-link">
       </div>
 
-      <!-- Fichier fiche uploadé -->
-      <div class="fg">
-        <label class="fl">Fichier de la fiche <span style="opacity:.55;font-size:.5rem">— optionnel</span></label>
-        <div class="fiche-drop" id="fiche-drop">
-          <input type="file" id="f-fiche-file" accept=".html,.htm,.pdf,.doc,.docx,.odt,.txt,.md,.pages" onchange="handleFicheFile(event)">
-          <div class="fiche-drop-ico">📄</div>
-          <div class="fiche-drop-main">
-            <span class="fiche-drop-label" id="fiche-drop-label">Cliquer pour uploader votre fichier fiche</span>
-            <span class="fiche-drop-formats">HTML · PDF · DOC · DOCX · ODT · TXT · MD</span>
-          </div>
-        </div>
-        <div class="fiche-name-tag" id="fiche-name-tag"></div>
-      </div>
 
 
       <!-- Statistiques -->
@@ -565,7 +474,7 @@ footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:22
       </div>
 
       <div class="fg"><label class="fl">Pseudo Discord *</label><input type="text" class="fi" placeholder="Ex: username" id="f-discord"></div>
-      <button class="bsub" id="bsub" onclick="submitCard()">▸ Soumettre pour validation</button>
+      <button class="bsub" id="bsub" onclick="submitCard()">▸ Ajouter la fiche</button>
     </div>
   </div>
 </div>
@@ -612,9 +521,6 @@ window.updateRaceSpecific = function(group){
 /* RACES chargé depuis js/constants.js */
 /* RANKS chargé depuis js/constants.js */
 
-/** Génère les pips de puissance (legacy, conservé pour compatibilité) */
-/* ── buildPips : construit la barre de niveau (unused, conservé pour compatibilité) ── */
-function buildPips(c,rank){const rk=RANKS[rank]||RANKS.F;c.innerHTML='';for(let i=1;i<=11;i++){const p=document.createElement('div');p.className='ppip'+(i<=rk.level?' on':'');if(i<=rk.level){p.style.background=rk.color;p.style.color=rk.color;}c.appendChild(p);}}
 
 /**
  * Construit une carte personnage en DOM.
@@ -821,7 +727,11 @@ function filterRank(rank, btn) {
 /* ── showToast : affiche une notification temporaire en bas de page ── */
 /* showToast est défini dans js/utils.js */
 /* ── Gestion de la modale de soumission ── */
-function openModal(){document.getElementById('modal').classList.add('open');document.body.style.overflow='hidden';}
+function openModal(){
+  if(!window._isAdmin){ showToast('⚠ Connexion admin requise.','error'); return; }
+  document.getElementById('modal').classList.add('open');
+  document.body.style.overflow='hidden';
+}
 function closeModal(){document.getElementById('modal').classList.remove('open');document.body.style.overflow='';}
 document.getElementById('modal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal();});
 
@@ -863,25 +773,7 @@ function clearPrev(){
 }
 
 /* ════════════════════════════════════════════
-   GESTION FICHIER FICHE — HTML/PDF/DOC…
-   ════════════════════════════════════════════ */
-let ficheFile=null;
-
-function handleFicheFile(e){
-  const f=e.target.files[0];
-  if(!f)return;
-  ficheFile=f;
-  const drop=document.getElementById('fiche-drop');
-  drop.classList.add('has-file');
-  document.getElementById('fiche-drop-label').textContent='Fichier sélectionné ✓';
-  const tag=document.getElementById('fiche-name-tag');
-  tag.textContent='📄 '+f.name;
-  tag.style.display='block';
-}
-
-/* ════════════════════════════════════════════
-   SOUMISSION DU FORMULAIRE
-   Valide, upload, puis appelle submitToFirebase
+   SOUMISSION DU FORMULAIRE (admin uniquement)
    ════════════════════════════════════════════ */
 /* ── Powers form ── */
 function addPowerField(name='', desc=''){
@@ -908,6 +800,11 @@ function getPowers(){
 function clearPowers(){document.getElementById('powers-form-wrap').innerHTML='';}
 
 async function submitCard(){
+  /* ── Seuls les admins peuvent ajouter des fiches ── */
+  if(!window._isAdmin){
+    showToast('⚠ Connexion admin requise.','error');
+    return;
+  }
   /* sanitize() retire les balises HTML des champs texte avant stockage */
   const fn          = sanitize(document.getElementById('f-fn').value.trim());
   const ln          = sanitize(document.getElementById('f-ln').value.trim());
@@ -935,13 +832,6 @@ async function submitCard(){
     showToast('Remplissez tous les champs obligatoires (*)','error');return;
   }
 
-  /* ── Anti-spam : vérifie le cooldown avant soumission ── */
-  if(!AntiSpam.canSubmit()){
-    const secs = AntiSpam.remainingSeconds();
-    showToast(`⏳ Patientez encore ${secs}s avant de soumettre à nouveau.`,'error',5000);
-    return;
-  }
-
   const btn=document.getElementById('bsub');
   btn.disabled=true;btn.textContent='⟳ Envoi en cours...';
 
@@ -949,21 +839,31 @@ async function submitCard(){
     firstname:fn,lastname:ln,age,race,rank,bio,desc:bio,
     linkUrl,linkType:'Lien',
     discord,stats,powers:getPowers(),
-    photoUrl, // vide si fichier photo, sera rempli par submitToFirebase
+    photoUrl,
     links:[{t:'Fiche',h:linkUrl}]
   };
 
   try{
-    if(window.submitToFirebase){
-      await window.submitToFirebase(data,photoFile,ficheFile);
-      AntiSpam.markSubmitted(); /* démarre le cooldown de 45s */
-      showToast('✓ Fiche soumise ! En attente de validation.','success');
-    }else throw new Error('Firebase non configuré');
+    /* Upload photo si fichier sélectionné */
+    if(photoFile){
+      const compressed = await compressImage(photoFile);
+      const r2 = window._ref(window._storage,`photos/${Date.now()}_${photoFile.name.replace(/\.[^.]+$/,'.jpg')}`);
+      const s2  = await window._uploadBytes(r2, compressed);
+      data.photoUrl = await window._getDownloadURL(s2.ref);
+    }
+    /* Écriture directe dans Firestore (admin connecté) */
+    await window._addDoc(window._collection(window._db,'fiches'),{
+      ...data,
+      status:'validee',
+      createdAt:window._serverTimestamp()
+    });
+    showToast('✓ Fiche ajoutée et publiée !','success');
   }catch(e){
-    showToast('⚠ Firebase non configuré — voir README.md','error');
+    console.error(e);
+    showToast('⚠ Erreur : '+e.message,'error');
   }
 
-  btn.disabled=false;btn.textContent='▸ Soumettre pour validation';
+  btn.disabled=false;btn.textContent='▸ Ajouter la fiche';
 
   // Reset complet
   ['f-fn','f-ln','f-age','f-bio','f-link','f-discord','f-photo-url'].forEach(id=>document.getElementById(id).value='');
@@ -972,13 +872,9 @@ async function submitCard(){
   ['f-str','f-agi','f-spd','f-int','f-mana','f-res','f-cha','f-aura'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='0';});
   clearPowers();
   document.getElementById('f-rank').value='';
-  photoFile=null;ficheFile=null;
+  photoFile=null;
   clearPrev();
   document.getElementById('f-file').value='';
-  document.getElementById('f-fiche-file').value='';
-  document.getElementById('fiche-drop').classList.remove('has-file');
-  document.getElementById('fiche-drop-label').textContent='Cliquer pour uploader votre fichier fiche';
-  document.getElementById('fiche-name-tag').style.display='none';
   closeModal();
 }
 </script>

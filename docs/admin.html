@@ -7,8 +7,8 @@
   ┌─────────────────────────────────────────────────────────────────────┐
   │ AUTH      Google Sign-In (popup) + email/password en fallback       │
   │ SÉCURITÉ  Whitelist Firestore : admins/{uid} → accès refusé si abs. │
-  │ RÔLES     admin  → accès total (valider, rejeter, supprimer, logs)  │
-  │           modo   → valider + rejeter uniquement, pas de suppression │
+  │ RÔLES     admin  → accès total (ajouter, supprimer, logs)           │
+  │           modo   → ajouter uniquement, pas de suppression            │
   │ LOGS      Chaque action écrit dans Firestore logs/ (onglet dédié)   │
   └─────────────────────────────────────────────────────────────────────┘
 
@@ -183,50 +183,21 @@ function loadLogs() {
    FICHES
    ════════════════════════════════════════════════════════════════════ */
 function loadAllFiches() {
+  /* Toutes les fiches sont directement "validee" (ajout admin uniquement) */
   const q = query(collection(db, 'fiches'), orderBy('createdAt', 'desc'));
   onSnapshot(q, snap => {
-    const all = [], pending = [], approved = [], rejected = [];
-    snap.forEach(d => {
-      const f = { id: d.id, ...d.data() };
-      all.push(f);
-      if      (f.status === 'en_attente') pending.push(f);
-      else if (f.status === 'validee')    approved.push(f);
-      else if (f.status === 'rejetee')    rejected.push(f);
-    });
-    document.getElementById('cnt-pending').textContent  = pending.length;
-    document.getElementById('cnt-approved').textContent = approved.length;
-    document.getElementById('cnt-rejected').textContent = rejected.length;
-    document.getElementById('cnt-total').textContent    = all.length;
-    const bp = document.getElementById('badge-pending');
-    bp.textContent = pending.length || '';
-    bp.style.display = pending.length ? 'inline' : 'none';
-    renderTable('table-pending',  pending,  'pending');
-    renderTable('table-approved', approved, 'approved');
-    renderTable('table-rejected', rejected, 'rejected');
+    const fiches = [];
+    snap.forEach(d => fiches.push({ id: d.id, ...d.data() }));
+    document.getElementById('cnt-total').textContent = fiches.length;
+    renderTable('table-fiches', fiches);
   }, err => console.warn('[fiches]', err.message));
 }
 
-window.validateFiche = async function(id, name) {
-  await updateDoc(doc(db,'fiches',id), { status:'validee', validatedAt: new Date() });
-  await writeLog('validate', id, name);
-  showToast('✓ Fiche validée et publiée !', 'success');
-};
-window.rejectFiche = async function(id, name) {
-  const reason = document.getElementById('reject-reason-'+id)?.value || '';
-  await updateDoc(doc(db,'fiches',id), { status:'rejetee', rejectReason: reason, rejectedAt: new Date() });
-  await writeLog('reject', id, name + (reason ? ` — ${reason}` : ''));
-  showToast('✗ Fiche rejetée.', 'error');
-};
 window.deleteFiche = async function(id, name) {
   if (!confirm('Supprimer définitivement cette fiche ?')) return;
   await deleteDoc(doc(db,'fiches',id));
   await writeLog('delete', id, name);
   showToast('Fiche supprimée.', 'error');
-};
-window.restoreFiche = async function(id, name) {
-  await updateDoc(doc(db,'fiches',id), { status:'en_attente' });
-  await writeLog('restore', id, name);
-  showToast('↺ Fiche remise en attente.', 'success');
 };
 
 /* ════════════════════════════════════════════════════════════════════
@@ -377,17 +348,10 @@ function renderAdminHeader() {
 .action-btn:disabled{opacity:.3;cursor:not-allowed;}
 .action-btn.approve{color:var(--green);border-color:rgba(0,255,136,.35);}
 .action-btn.approve:hover:not(:disabled){background:rgba(0,255,136,.08);box-shadow:0 0 12px rgba(0,255,136,.12);}
-.action-btn.reject{color:var(--red);border-color:rgba(255,48,48,.35);}
-.action-btn.reject:hover:not(:disabled){background:rgba(255,48,48,.07);}
 .action-btn.delete{color:var(--muted);border-color:rgba(90,122,144,.3);}
 .action-btn.delete:hover:not(:disabled){color:var(--red);border-color:rgba(255,48,48,.3);}
-.action-btn.restore{color:var(--gold);border-color:rgba(255,214,10,.35);}
-.action-btn.restore:hover:not(:disabled){background:rgba(255,214,10,.06);}
 .action-btn.view{color:var(--cyan);border-color:rgba(0,245,255,.3);text-decoration:none;display:inline-flex;align-items:center;}
 .action-btn.view:hover{background:rgba(0,245,255,.05);}
-.reject-input{width:100%;background:rgba(255,48,48,.04);border:1px solid rgba(255,48,48,.2);color:var(--text);font-family:'Rajdhani',sans-serif;font-size:.8rem;padding:6px 10px;outline:none;transition:border-color .2s;box-sizing:border-box;}
-.reject-input:focus{border-color:var(--red);}
-.reject-input::placeholder{color:var(--muted);font-size:.75rem;}
 
 /* ── Logs ── */
 .log-list{display:flex;flex-direction:column;gap:1px;}
@@ -397,9 +361,7 @@ function renderAdminHeader() {
 .log-row-header{background:rgba(0,0,0,.3);color:var(--muted);letter-spacing:.14em;text-transform:uppercase;font-size:.54rem;}
 .log-action{font-weight:700;letter-spacing:.12em;text-transform:uppercase;}
 .log-action.validate{color:var(--green);}
-.log-action.reject{color:var(--red);}
 .log-action.delete,.log-action.delete_pnj{color:var(--muted);}
-.log-action.restore{color:var(--gold);}
 .log-role-admin{color:var(--gold);}
 .log-role-modo{color:var(--cyan);}
 .log-target{color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
@@ -468,7 +430,7 @@ function renderAdminHeader() {
 </div>
 
 <!-- ══════════ PANEL ══════════ -->
-<div id="panel-screen" x-data="{ tab: 'pending', logsVisible: false }">
+<div id="panel-screen" x-data="{ tab: 'fiches', logsVisible: false }">
 
   <div class="admin-header">
     <div class="admin-logo">JAHARTA <span>//</span> ADMIN</div>
@@ -481,17 +443,8 @@ function renderAdminHeader() {
   </div>
 
   <div class="admin-stats">
-    <div class="stat-card" style="--sc-color:var(--gold)">
-      <div class="stat-val" id="cnt-pending">–</div><div class="stat-lbl">En attente</div>
-    </div>
-    <div class="stat-card" style="--sc-color:var(--green)">
-      <div class="stat-val" id="cnt-approved">–</div><div class="stat-lbl">Validées</div>
-    </div>
-    <div class="stat-card" style="--sc-color:var(--red)">
-      <div class="stat-val" id="cnt-rejected">–</div><div class="stat-lbl">Rejetées</div>
-    </div>
-    <div class="stat-card" style="--sc-color:var(--muted)">
-      <div class="stat-val" id="cnt-total">–</div><div class="stat-lbl">Total fiches</div>
+    <div class="stat-card" style="--sc-color:var(--cyan)">
+      <div class="stat-val" id="cnt-total">–</div><div class="stat-lbl">Fiches publiées</div>
     </div>
     <div class="stat-card" style="--sc-color:#b06eff">
       <div class="stat-val" id="cnt-pnj">–</div><div class="stat-lbl">PNJ</div>
@@ -502,17 +455,9 @@ function renderAdminHeader() {
   </div>
 
   <div class="admin-tabs">
-    <button class="admin-tab" id="tab-btn-pending"
-        :class="{ active: tab === 'pending' }"
-        @click="tab = 'pending'">
-      En attente <span class="tab-badge" id="badge-pending"></span>
-    </button>
     <button class="admin-tab"
-        :class="{ active: tab === 'approved' }"
-        @click="tab = 'approved'">Validées</button>
-    <button class="admin-tab"
-        :class="{ active: tab === 'rejected' }"
-        @click="tab = 'rejected'">Rejetées</button>
+        :class="{ active: tab === 'fiches' }"
+        @click="tab = 'fiches'">Fiches</button>
     <button class="admin-tab"
         :class="{ active: tab === 'pnj' }"
         @click="tab = 'pnj'">
@@ -526,32 +471,13 @@ function renderAdminHeader() {
     </button>
   </div>
 
-  <div class="tab-content" id="tab-pending" x-show="tab === 'pending'" x-cloak>
+  <!-- TAB : FICHES -->
+  <div class="tab-content" id="tab-fiches" x-show="tab === 'fiches'" x-cloak>
     <div class="tab-header">
-      <div class="tab-title">⟳ Fiches en attente</div>
-      <div class="tab-count" id="lbl-pending">—</div>
+      <div class="tab-title">◈ Fiches personnages</div>
+      <div class="tab-count" id="lbl-fiches">—</div>
     </div>
-    <div class="fiche-list" id="table-pending">
-      <div class="empty-list"><span class="empty-list-icon">⟳</span>Chargement...</div>
-    </div>
-  </div>
-
-  <div class="tab-content" id="tab-approved" x-show="tab === 'approved'" x-cloak>
-    <div class="tab-header">
-      <div class="tab-title">✓ Fiches validées</div>
-      <div class="tab-count" id="lbl-approved">—</div>
-    </div>
-    <div class="fiche-list" id="table-approved">
-      <div class="empty-list"><span class="empty-list-icon">⟳</span>Chargement...</div>
-    </div>
-  </div>
-
-  <div class="tab-content" id="tab-rejected" x-show="tab === 'rejected'" x-cloak>
-    <div class="tab-header">
-      <div class="tab-title">✗ Fiches rejetées</div>
-      <div class="tab-count" id="lbl-rejected">—</div>
-    </div>
-    <div class="fiche-list" id="table-rejected">
+    <div class="fiche-list" id="table-fiches">
       <div class="empty-list"><span class="empty-list-icon">⟳</span>Chargement...</div>
     </div>
   </div>
@@ -588,21 +514,23 @@ function renderAdminHeader() {
 
 /* switchTab() → remplacé par Alpine.js (@click + :class + x-show) */
 
-function renderTable(containerId, fiches, type) {
+/**
+ * Affiche la liste des fiches dans l'onglet admin.
+ * Actions : voir la fiche externe + supprimer.
+ * @param {string} containerId - ID du conteneur DOM
+ * @param {Array}  fiches      - Tableau de fiches Firestore
+ */
+function renderTable(containerId, fiches) {
   const el   = document.getElementById(containerId);
   const role = window._adminRole || 'modo';
   const canDelete = role === 'admin';
 
-  /* Compteur */
-  const lblMap = { 'table-pending':'lbl-pending', 'table-approved':'lbl-approved', 'table-rejected':'lbl-rejected' };
-  const lblId  = lblMap[containerId];
-  if (lblId) document.getElementById(lblId).textContent = fiches.length + ' fiche' + (fiches.length > 1 ? 's' : '');
+  /* Compteur dans le header */
+  const lbl = document.getElementById('lbl-fiches');
+  if (lbl) lbl.textContent = fiches.length + ' fiche' + (fiches.length > 1 ? 's' : '');
 
   if (!fiches.length) {
-    el.innerHTML = `<div class="empty-list"><span class="empty-list-icon">◈</span>${
-      type==='pending'  ? 'Aucune fiche en attente — tout est à jour !' :
-      type==='approved' ? 'Aucune fiche validée pour le moment.' : 'Aucune fiche rejetée.'
-    }</div>`;
+    el.innerHTML = '<div class="empty-list"><span class="empty-list-icon">◈</span>Aucune fiche pour le moment.</div>';
     return;
   }
 
@@ -614,7 +542,7 @@ function renderTable(containerId, fiches, type) {
     const date = f.createdAt?.toDate
       ? f.createdAt.toDate().toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})
       : '–';
-    const safeName = name.replace(/'/g, "\\'");
+    const safeName = name.replace(/'/g, "\'");
 
     const row = document.createElement('div');
     row.className = 'fiche-row';
@@ -640,44 +568,22 @@ function renderTable(containerId, fiches, type) {
       <div class="fiche-meta">
         <span class="fiche-tag" style="color:${rc.color};border-color:${rc.color}44;background:${rc.color}0e">${rc.label}</span>
         <span class="fiche-tag" style="color:${rk.color};border-color:${rk.color}44;background:${rk.color}0e">Rang ${f.rank||'?'}</span>
-        ${f.linkUrl?`<a href="${f.linkUrl}" target="_blank" class="fiche-tag" style="color:var(--cyan);border-color:rgba(0,245,255,0.3);text-decoration:none;background:rgba(0,245,255,0.05)">↗ Fiche</a>`:''}
+        ${f.age ? `<span class="fiche-tag" style="color:var(--muted);border-color:rgba(90,122,144,0.3)">${f.age}</span>` : ''}
       </div>
       <div class="fiche-desc">${f.desc||f.bio||''}</div>
       <div class="fiche-discord">Discord : <span>@${f.discord||'?'}</span></div>
-      <div class="fiche-date">Soumis le ${date}</div>
-      ${f.rejectReason?`<div style="font-family:'Share Tech Mono',monospace;font-size:.57rem;color:var(--red);margin-top:4px">Motif : ${f.rejectReason}</div>`:''}
+      <div class="fiche-date">Ajouté le ${date}</div>
     `;
     row.appendChild(info);
 
-    /* Actions */
+    /* Actions : Voir + Supprimer (admin uniquement) */
     const actions = document.createElement('div');
     actions.className = 'fiche-actions';
-    if (type === 'pending') {
-      actions.innerHTML = `
-        <div class="fiche-actions-row">
-          <button class="action-btn approve" onclick="validateFiche('${f.id}','${safeName}')">✓ Valider</button>
-          ${canDelete?`<button class="action-btn delete" onclick="deleteFiche('${f.id}','${safeName}')">✕ Suppr.</button>`:''}
-        </div>
-        <div class="fiche-actions-row" style="width:100%">
-          <input class="reject-input" id="reject-reason-${f.id}" placeholder="Motif du rejet (optionnel)...">
-        </div>
-        <div class="fiche-actions-row">
-          <button class="action-btn reject" onclick="rejectFiche('${f.id}','${safeName}')">✗ Rejeter</button>
-        </div>`;
-    } else if (type === 'approved') {
-      actions.innerHTML = `
-        <div class="fiche-actions-row">
-          ${f.linkUrl?`<a href="${f.linkUrl}" target="_blank" class="action-btn view">↗ Voir</a>`:''}
-          <button class="action-btn restore" onclick="restoreFiche('${f.id}','${safeName}')">↺ En attente</button>
-          ${canDelete?`<button class="action-btn delete" onclick="deleteFiche('${f.id}','${safeName}')">✕ Suppr.</button>`:''}
-        </div>`;
-    } else {
-      actions.innerHTML = `
-        <div class="fiche-actions-row">
-          <button class="action-btn restore" onclick="restoreFiche('${f.id}','${safeName}')">↺ En attente</button>
-          ${canDelete?`<button class="action-btn delete" onclick="deleteFiche('${f.id}','${safeName}')">✕ Suppr.</button>`:''}
-        </div>`;
-    }
+    actions.innerHTML = `
+      <div class="fiche-actions-row">
+        ${f.linkUrl?`<a href="${f.linkUrl}" target="_blank" class="action-btn view">↗ Voir fiche</a>`:''}
+        ${canDelete?`<button class="action-btn delete" onclick="deleteFiche('${f.id}','${safeName}')">✕ Supprimer</button>`:''}
+      </div>`;
     row.appendChild(actions);
     el.appendChild(row);
   });
@@ -746,8 +652,7 @@ function renderLogs(logs) {
   const el = document.getElementById('table-logs');
   document.getElementById('lbl-logs').textContent = logs.length + ' action' + (logs.length > 1 ? 's' : '');
   const LABELS = {
-    validate:'✓ Valider', reject:'✗ Rejeter',
-    delete:'✕ Supprimer', restore:'↺ Restaurer', delete_pnj:'✕ Suppr. PNJ'
+    validate:'✓ Ajouter', delete:'✕ Supprimer', delete_pnj:'✕ Suppr. PNJ'
   };
   const header = el.querySelector('.log-row-header');
   el.innerHTML = '';
