@@ -16,13 +16,14 @@
 
 /* ── Groupes de races : clé Firestore → couleur + label affiché ── */
 window.RACES = {
-  humanoid:   { color: '#00c8ff', label: 'Humanoid'       },
-  zooid:      { color: '#44ff88', label: 'Zooid'          },
-  mythzooid:  { color: '#b06eff', label: 'Mythical Zooid' },
-  demon:      { color: '#ff3030', label: 'Demon'          },
-  artificial: { color: '#ffd60a', label: 'Artificial'     },
-  semiliquid: { color: '#00e5cc', label: 'Semi-Liquid'    },
-  undead:     { color: '#9a8cff', label: 'Undead'         },
+  /* Clés = valeurs exactes envoyées par le bot Navari (race_category) */
+  'Humanoids':  { color: '#00c8ff', label: 'Humanoids'      },
+  'Zooids':     { color: '#44ff88', label: 'Zooids'         },
+  'MythZooids': { color: '#b06eff', label: 'Mythical Zooids'},
+  'Demons':     { color: '#ff3030', label: 'Demons'         },
+  'Artificial': { color: '#ffd60a', label: 'Artificial'     },
+  'Semi-Liquid':{ color: '#00e5cc', label: 'Semi-Liquid'    },
+  'Undead':     { color: '#9a8cff', label: 'Undead'         },
 };
 
 /* ── Rangs de puissance : clé → couleur, bg semi-transparent, niveau (1–11) ──
@@ -48,15 +49,16 @@ window.RANKS = {
 /* ── Races spécifiques disponibles dans le formulaire, par groupe ──
    Ordre : alphabétique préféré pour faciliter la lecture du formulaire. */
 window.RACES_SPECIFIC = {
-  humanoid:   ['Human', 'Elf', 'Vampire', 'Dwarf', 'Orc', 'Oni'],
-  zooid:      ['Neko', 'Doggo', 'Bunny', 'Draph', 'Lamia', 'Cowie',
-               'Kakuen', 'Dormouse', 'Jinko', 'Gyoubu', 'Xiongmao',
-               'Siren', 'Moth'],
-  mythzooid:  ['Qilin', 'Dragon', 'Minotaur', 'Hellhound', 'Sphynx',
-               'Phoenix', 'Fenrir', 'Unicorn', 'Kitsune', 'Salamander',
-               'Hakutaku'],
-  demon:      ['Tiefling', 'Succubus', 'Devil'],
-  artificial: ['Android', 'Shuma'],
-  semiliquid: ['Slime', 'Nureonago'],
-  undead:     ['Jiangshi', 'Joker'],
+  /* Clés = valeurs exactes du bot (race_category) */
+  'Humanoids':   ['Human', 'Elf', 'Vampire', 'Dwarf', 'Orc', 'Oni'],
+  'Zooids':      ['Neko', 'Doggo', 'Bunny', 'Draph', 'Lamia', 'Cowie',
+                  'Kakuen', 'Dormouse', 'Jinko', 'Gyoubu', 'Xiongmao',
+                  'Siren', 'Moth'],
+  'MythZooids':  ['Qilin', 'Dragon', 'Minotaur', 'Hellhound', 'Sphynx',
+                  'Phoenix', 'Fenrir', 'Unicorn', 'Kitsune', 'Salamander',
+                  'Hakutaku'],
+  'Demons':      ['Tiefling', 'Succubus', 'Devil'],
+  'Artificial':  ['Android', 'Shuma'],
+  'Semi-Liquid': ['Slime', 'Nureonago'],
+  'Undead':      ['Jiangshi', 'Joker'],
 };
