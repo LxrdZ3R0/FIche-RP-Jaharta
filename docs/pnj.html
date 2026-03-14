@@ -180,21 +180,33 @@ window.deleteFilter=async function(id){
 };
 
 /* ── Écoute temps réel de la collection PNJ (onSnapshot) ── */
+/* Pas d'orderBy : Firestore exclut silencieusement les docs sans le champ
+   ordonné. Le bot envoie syncedAt, les PNJ manuels ont createdAt.
+   On charge tout et on trie côté client. */
 function loadPNJ(){
-  const q=query(collection(db,'pnj'),orderBy('createdAt','desc'));
+  const q=collection(db,'pnj');
   onSnapshot(q,snap=>{
     const container=document.getElementById('pnj-container');
     container.querySelectorAll('.pnj-card').forEach(c=>c.remove());
     const empty=document.getElementById('empty-state');
     if(empty)empty.style.display='none';
-    let count=0;
-    snap.forEach(d=>{
-      const card=buildPNJCard({id:d.id,...d.data()});
-      container.insertBefore(card,container.firstChild);
-      count++;
+
+    /* Collecter + trier : createdAt (PNJ manuels) ou syncedAt (bot) */
+    const docs=[];
+    snap.forEach(d=>docs.push({id:d.id,...d.data()}));
+    docs.sort((a,b)=>{
+      const ta=a.createdAt?.toMillis?.()??( a.syncedAt?new Date(a.syncedAt).getTime():0);
+      const tb=b.createdAt?.toMillis?.()??( b.syncedAt?new Date(b.syncedAt).getTime():0);
+      return tb-ta;
     });
-    if(count===0&&empty)empty.style.display='block';
-    // re-apply active filter
+
+    docs.forEach(p=>{
+      const card=buildPNJCard(p);
+      container.appendChild(card);
+    });
+    if(docs.length===0&&empty)empty.style.display='block';
+
+    /* Ré-appliquer le filtre actif */
     if(window._activeFilter!=='all'){
       document.querySelectorAll('.pnj-card[data-cat]').forEach(c=>{
         c.style.display=c.dataset.cat===window._activeFilter?'':'none';

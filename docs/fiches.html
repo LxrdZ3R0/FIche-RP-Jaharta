@@ -93,12 +93,12 @@ function loadCards(){
       /* Retire les skeletons dès que les vraies données arrivent */
       Skeleton.hide('cards-container');
       Array.from(container.children).forEach(el=>{if(el!==noRes&&!el.id)el.remove();});
-      // Sort client-side by createdAt desc
+      /* Tri : createdAt (fiches manuelles) ou syncedAt (bot Navari) */
       const docs=[];
       snap.forEach(d=>docs.push({id:d.id,...d.data()}));
       docs.sort((a,b)=>{
-        const ta=a.createdAt?.toMillis?a.createdAt.toMillis():0;
-        const tb=b.createdAt?.toMillis?b.createdAt.toMillis():0;
+        const ta=a.createdAt?.toMillis?.()??( a.syncedAt?new Date(a.syncedAt).getTime():0);
+        const tb=b.createdAt?.toMillis?.()??( b.syncedAt?new Date(b.syncedAt).getTime():0);
         return tb-ta;
       });
       /* <jaharta-card> remplace buildCard() — le composant gère son propre rendu */
@@ -190,6 +190,9 @@ loadCards();
 .card-ln{font-family:'Orbitron',sans-serif;font-weight:800;font-size:1.15rem;color:#fff;letter-spacing:.06em;line-height:1;margin-bottom:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .card-rpill{display:inline-flex;align-items:center;gap:5px;font-family:'Share Tech Mono',monospace;font-size:.56rem;letter-spacing:.16em;text-transform:uppercase;padding:3px 10px;border:1px solid;margin-bottom:13px;width:fit-content;}
 .rpip{width:4px;height:4px;border-radius:50%;background:currentColor;box-shadow:0 0 4px currentColor;flex-shrink:0;}
+.card-affinity{font-family:'Share Tech Mono',monospace;font-size:.56rem;letter-spacing:.12em;color:var(--muted);margin-bottom:8px;display:flex;gap:6px;align-items:baseline;}
+.aff-label{font-size:.5rem;letter-spacing:.2em;text-transform:uppercase;opacity:.55;flex-shrink:0;}
+.rb-level{font-family:'Share Tech Mono',monospace;font-size:.42rem;letter-spacing:.1em;color:currentColor;opacity:.7;margin-top:2px;text-align:center;}
 .card-desc{font-size:.82rem;color:var(--muted);line-height:1.65;font-weight:300;margin-bottom:14px;flex:1;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
 .card-links{display:flex;gap:6px;flex-wrap:wrap;border-top:1px solid var(--border);padding-top:12px;}
 .lbtn{font-family:'Share Tech Mono',monospace;font-size:.64rem;letter-spacing:.1em;text-transform:uppercase;color:var(--cyan);text-decoration:none;border:1px solid rgba(0,245,255,0.35);padding:9px 16px;transition:all .2s;display:flex;align-items:center;gap:7px;background:rgba(0,245,255,0.04);cursor:pointer;}
