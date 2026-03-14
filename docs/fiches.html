@@ -41,29 +41,23 @@
  * accessibles depuis les <script> non-module ci-dessous.
  * ─────────────────────────────────────────────────────────────────────── */
 import{initializeApp,getApps}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import{getFirestore,collection,addDoc,getDocs,onSnapshot,doc,getDoc,updateDoc,deleteDoc,query,where,orderBy,serverTimestamp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import{getFirestore,initializeFirestore,persistentLocalCache,collection,addDoc,getDocs,onSnapshot,doc,getDoc,updateDoc,deleteDoc,query,where,orderBy,serverTimestamp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import{getAuth,onAuthStateChanged}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import{getStorage,ref,uploadBytes,getDownloadURL}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
-import{enableIndexedDbPersistence}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 /* ── Web Component <jaharta-card> ── */
 import'/js/jaharta-card.js';
-/* ── Config Firebase (identique dans tous les fichiers) ── */
+/* ── Config Firebase ── */
 const firebaseConfig={apiKey:"AIzaSyAru7qZX8Gu_b8Y3oNDV-a5PmkrrkRjkcs",authDomain:"jaharta-rp.firebaseapp.com",projectId:"jaharta-rp",storageBucket:"jaharta-rp.firebasestorage.app",messagingSenderId:"217075417489",appId:"1:217075417489:web:4d1e2df422a5cd42411a30",measurementId:"G-15JSSBZWCH"};
-/* Réutilise l'app DEFAULT si elle existe, sinon la crée — évite l'erreur 'already exists' */
 const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
-const db=getFirestore(app);
-const storage=getStorage(app);
 
-/* ── Cache offline Firestore ──────────────────────────────────────────
-   Permet au site d'afficher les fiches même sans connexion.
-   Les données sont lues depuis IndexedDB, puis resync au retour réseau.
-   L'erreur "failed-precondition" se produit si plusieurs onglets sont
-   ouverts (comportement normal, on l'ignore silencieusement). */
-enableIndexedDbPersistence(db).catch(err => {
-  if(err.code !== 'failed-precondition' && err.code !== 'unimplemented') {
-    console.warn('[Firestore offline]', err.code);
-  }
-});
+/* ── Cache offline Firestore (syntaxe Firebase v10) ── */
+let db;
+try {
+  db = initializeFirestore(app, { localCache: persistentLocalCache() });
+} catch(e) {
+  db = getFirestore(app);
+}
+const storage=getStorage(app);
 const auth=getAuth(app);
 /* ── Exposition des API Firebase en globals pour les scripts non-module ── */
 window._db=db; window._storage=storage;
