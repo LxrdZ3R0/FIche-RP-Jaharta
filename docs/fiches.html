@@ -70,6 +70,163 @@ onAuthStateChanged(auth, user => {
      "+ Ajouter" sont gérés par js/auth-badge.js qui s'exécute en parallèle */
   window._isAdmin = !!user;
 });
+/* ═══════════════════════════════════════════════════════
+   buildCard(ch) — construit une carte personnage en DOM pur
+   (remplace le Web Component <jaharta-card> pour éviter
+    les problèmes de timing avec persistentLocalCache)
+   ═══════════════════════════════════════════════════════ */
+function buildCard(ch) {
+  const RACES = window.RACES || {};
+  const RANKS = window.RANKS || {};
+  const san   = window.sanitize || (s => String(s||'').trim().slice(0,2000));
+  const rc    = RACES[ch.race] || { color:'#00c8ff', label: ch.race||'?' };
+  const rk    = RANKS[ch.rank] || { color:'#6b7280' };
+
+  /* Wrapper display:contents pour la grid */
+  const wrap = document.createElement('div');
+  wrap.style.display = 'contents';
+  wrap.dataset.race  = ch.race || '';
+  wrap.dataset.rank  = ch.rank || '';
+
+  const card = document.createElement('div');
+  card.className   = 'rp-card';
+  card.dataset.race = ch.race || '';
+  card.dataset.rank = ch.rank || '';
+
+  /* ── Photo ── */
+  const photo = document.createElement('div');
+  photo.className = 'card-photo';
+  const stripe = document.createElement('div');
+  stripe.className = 'card-stripe';
+  stripe.style.background = `linear-gradient(90deg,${rc.color},${rc.color}20)`;
+  photo.appendChild(stripe);
+  if (ch.photoUrl || ch.photo) {
+    const img = document.createElement('img');
+    img.src = ch.photoUrl || ch.photo;
+    img.alt = ch.firstname || '';
+    img.loading = 'lazy';
+    img.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:top center;z-index:1;';
+    img.onerror = () => img.remove();
+    photo.appendChild(img);
+  } else {
+    const ph = document.createElement('div');
+    ph.className = 'card-photo-ph';
+    ph.style.color = rc.color;
+    ph.textContent = (ch.firstname?.[0]||'') + (ch.lastname?.[0]||'');
+    photo.appendChild(ph);
+  }
+  const ov = document.createElement('div');
+  ov.className = 'card-photo-ov';
+  photo.appendChild(ov);
+
+  /* ── Badge rang ── */
+  const badge = document.createElement('div');
+  badge.className = 'rank-badge';
+  badge.style.color = rk.color;
+  const bv = document.createElement('div');
+  bv.className = 'rb-val' + (ch.rank==='SSS'?' sm':'');
+  if (['SSS','X','T','G','G+','Z'].includes(ch.rank)) bv.style.animation = 'rankPulse 2.5s infinite';
+  bv.textContent = ch.rank || '?';
+  const bl = document.createElement('div');
+  bl.className = 'rb-lbl';
+  bl.textContent = 'RANG';
+  badge.appendChild(bv);
+  badge.appendChild(bl);
+  if (ch.level && ch.level > 0) {
+    const blvl = document.createElement('div');
+    blvl.className = 'rb-level';
+    blvl.textContent = `Nv.${ch.level}`;
+    badge.appendChild(blvl);
+  }
+  photo.appendChild(badge);
+
+  /* ── Stats bar ── */
+  const statDefs = [
+    {k:'str',lbl:'STR',cls:'sb-str'},{k:'agi',lbl:'AGI',cls:'sb-agi'},
+    {k:'spd',lbl:'SPD',cls:'sb-spd'},{k:'int',lbl:'INT',cls:'sb-int'},
+    {k:'mana',lbl:'MNA',cls:'sb-mana'},{k:'res',lbl:'RES',cls:'sb-res'},
+    {k:'cha',lbl:'CHA',cls:'sb-cha'},{k:'aura',lbl:'AUR',cls:'sb-aura'},
+  ];
+  const s = ch.stats || {};
+  if (statDefs.some(d=>(s[d.k]||0)>0)) {
+    const bar = document.createElement('div');
+    bar.className = 'stats-bar';
+    statDefs.forEach(d=>{
+      const v = s[d.k]||0;
+      if (d.k==='aura' && v===0) return;
+      const item = document.createElement('div');
+      item.className = `sb-item ${d.cls}`;
+      const lbl2 = document.createElement('div'); lbl2.className='sb-lbl'; lbl2.textContent=d.lbl;
+      const val2 = document.createElement('div'); val2.className='sb-val'; val2.textContent=v;
+      const bbar = document.createElement('div'); bbar.className='sb-bar';
+      const fill = document.createElement('div'); fill.className='sb-fill';
+      fill.style.width = Math.min(100,Math.round(v/9999*100))+'%';
+      bbar.appendChild(fill);
+      item.appendChild(lbl2); item.appendChild(val2); item.appendChild(bbar);
+      bar.appendChild(item);
+    });
+    if (bar.children.length) photo.appendChild(bar);
+  }
+  card.appendChild(photo);
+
+  /* ── Corps ── */
+  const body = document.createElement('div');
+  body.className = 'card-body';
+  const fn = document.createElement('div'); fn.className='card-fn'; fn.textContent=san(ch.firstname||''); body.appendChild(fn);
+  const ln = document.createElement('div'); ln.className='card-ln'; ln.textContent=san(ch.lastname||''); body.appendChild(ln);
+  if (ch.age) { const age=document.createElement('div'); age.className='card-age'; age.textContent=ch.age; body.appendChild(age); }
+  const pill = document.createElement('div');
+  pill.className = 'card-rpill';
+  pill.style.cssText = `color:${rc.color};border-color:${rc.color}44;background:${rc.color}0e;`;
+  pill.innerHTML = `<span class="rpip" style="background:${rc.color};box-shadow:0 0 4px ${rc.color}"></span>` +
+    (ch.raceSpecific ? `${rc.label} <span style="opacity:.5;margin:0 3px">·</span><span style="opacity:.85">${ch.raceSpecific}</span>` : rc.label);
+  body.appendChild(pill);
+  if (ch.affinity) { const aff=document.createElement('div'); aff.className='card-affinity'; aff.innerHTML=`<span class="aff-label">Affinité</span> ${san(ch.affinity)}`; body.appendChild(aff); }
+  if (ch.desc||ch.bio) { const desc=document.createElement('p'); desc.className='card-desc'; desc.textContent=san(ch.desc||ch.bio||''); body.appendChild(desc); }
+
+  /* ── Pouvoirs ── */
+  const powers = ch.powers||[];
+  if (powers.length>0) {
+    const ps=document.createElement('div'); ps.className='powers-section';
+    const pt=document.createElement('div'); pt.className='powers-title'; pt.textContent='⚡ Pouvoirs'; ps.appendChild(pt);
+    const pl=document.createElement('div'); pl.className='powers-list';
+    powers.forEach(pw=>{
+      const pi=document.createElement('div'); pi.className='power-item';
+      pi.style.borderColor=rc.color+'88'; pi.style.background=rc.color+'08';
+      const pn=document.createElement('div'); pn.className='power-name'; pn.style.color=rc.color; pn.textContent=pw.name||pw; pi.appendChild(pn);
+      if (pw.desc) { const pd=document.createElement('div'); pd.className='power-desc'; pd.textContent=pw.desc; pi.appendChild(pd); }
+      pl.appendChild(pi);
+    });
+    ps.appendChild(pl); body.appendChild(ps);
+  }
+
+  /* ── Liens ── */
+  const ls = ch.links||(ch.linkUrl?[{t:ch.linkType||'Fiche',h:ch.linkUrl}]:[]);
+  if (ls.length>0) {
+    const links=document.createElement('div'); links.className='card-links';
+    ls.forEach(l=>{ const a=document.createElement('a'); a.className='lbtn'; a.href=l.h||'#'; a.target='_blank';
+      a.innerHTML=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>${l.t||'Lien'}`;
+      links.appendChild(a);
+    });
+    body.appendChild(links);
+  }
+
+  /* ── Boutons admin ── */
+  if (ch.id) {
+    const adminRow=document.createElement('div'); adminRow.className='card-admin-row';
+    adminRow.style.display=window._isAdmin?'flex':'none';
+    const editBtn=document.createElement('button'); editBtn.className='card-edit-btn'; editBtn.textContent='✎ Modifier';
+    editBtn.onclick=()=>window.openEditFiche?.(ch.id);
+    const delBtn=document.createElement('button'); delBtn.className='card-del-btn'; delBtn.textContent='✕ Supprimer';
+    delBtn.onclick=()=>window.deleteFicheById?.(ch.id);
+    adminRow.appendChild(editBtn); adminRow.appendChild(delBtn); body.appendChild(adminRow);
+  }
+  card.appendChild(body);
+  const deco=document.createElement('div'); deco.className='cdeco'; card.appendChild(deco);
+  wrap.appendChild(card);
+  return wrap;
+}
+
 /* ── Chargement temps réel des fiches validées (onSnapshot = mise à jour auto) ── */
 function loadCards(){
   /* Affiche 6 skeleton cards pendant que Firestore répond */
@@ -99,8 +256,7 @@ function loadCards(){
       });
 
       visible.forEach(d=>{
-        const el=document.createElement('jaharta-card');
-        el.fiche=d;
+        const el=buildCard(d);
         container.insertBefore(el,noRes);
       });
       animateCount(visible.length);updateCounts();
@@ -117,8 +273,7 @@ function loadCards(){
   }
 }
 
-/* jaharta-card.js chargé en script classique synchrone — déjà défini ici.
-   On attend juste que le DOM soit prêt. */
+/* buildCard() est défini inline — pas de dépendance externe, pas de timing issues */
 if(document.readyState === 'loading')
   document.addEventListener('DOMContentLoaded', loadCards, {once:true});
 else
@@ -309,7 +464,6 @@ footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:22
 <script src="js/debug.js"></script>
 <script src="js/constants.js"></script><!-- RACES, RANKS, RACES_SPECIFIC globaux -->
 <script src="js/utils.js"></script>    <!-- sanitize, compressImage, AntiSpam, Skeleton, showToast -->
-<script src="js/jaharta-card.js"></script><!-- Web Component — doit être défini avant Firebase -->
 <script type="module" src="js/auth-badge.js"></script>
 </head>
 <body>
