@@ -32,9 +32,6 @@
 <title>JAHARTA // Fiches RP</title>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=Share+Tech+Mono&family=Rajdhani:wght@300;400;500;600&display=swap" rel="stylesheet">
 
-<!-- Chargement du Web Component en premier, avant Firebase -->
-<script type="module" src="js/jaharta-card.js"></script>
-
 <script type="module">
 /*
  * ─── FIREBASE MODULE ───────────────────────────────────────────────────
@@ -120,9 +117,19 @@ function loadCards(){
   }
 }
 
-/* Attend que <jaharta-card> soit enregistré avant de charger les fiches */
-customElements.whenDefined('jaharta-card').then(()=>loadCards());
+/* Attend que le DOM ET <jaharta-card> soient prêts */
+Promise.all([
+  new Promise(r => {
+    if(document.readyState === 'loading')
+      document.addEventListener('DOMContentLoaded', r, {once:true});
+    else r();
+  }),
+  customElements.whenDefined('jaharta-card')
+]).then(() => loadCards());
 </script>
+
+<!-- jaharta-card chargé en module séparé, après le bloc Firebase -->
+<script type="module" src="js/jaharta-card.js"></script>
 
 <link rel="stylesheet" href="css/jaharta.css">
 <style>
