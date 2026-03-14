@@ -261,13 +261,10 @@ function buildPNJCard(p){
     + `<div class="pnj-photo-ph" style="color:${c};display:none">${(p.prenom||'?')[0]}</div>`
     :`<div class="pnj-photo-ph" style="color:${c}">${(p.prenom||'?')[0]}</div>`;
 
-  const motivHTML=hasMotivations?`
+  const motivHTML=p.motivations&&p.motivations.desc?`
     <div class="pnj-divider"></div>
     <div class="pnj-mot-title">Motivations</div>
-    ${p.motivations.desc?`<div class="pnj-mot-desc">${p.motivations.desc}</div>`:''}
-    ${p.motivations.social?`<div class="pnj-mot-item"><span class="pnj-mot-lbl" style="color:#60a5fa">Plan Social :</span> <span>${p.motivations.social}</span></div>`:''}
-    ${p.motivations.economique?`<div class="pnj-mot-item"><span class="pnj-mot-lbl" style="color:#ffd60a">Plan Économique :</span> <span>${p.motivations.economique}</span></div>`:''}
-    ${p.motivations.militaire?`<div class="pnj-mot-item"><span class="pnj-mot-lbl" style="color:#ff3030">Plan Militaire :</span> <span>${p.motivations.militaire}</span></div>`:''}
+    <div class="pnj-mot-desc">${p.motivations.desc}</div>
   `:'';
 
   const adminBtns=p.id?`
@@ -355,9 +352,7 @@ window.submitPNJ=async function(){
   const photoUrl=document.getElementById('pnj-photo-url').value.trim();
   const desc=document.getElementById('pnj-desc').value.trim();
   const motDesc=document.getElementById('pnj-mot-desc').value.trim();
-  const motSocial=document.getElementById('pnj-mot-social').value.trim();
-  const motEco=document.getElementById('pnj-mot-eco').value.trim();
-  const motMil=document.getElementById('pnj-mot-mil').value.trim();
+
   if(!nom||!prenom||!desc){showToast('Remplissez Nom, Prénom et Description','error');return;}
   const btn=document.getElementById('pnj-submit-btn');
   btn.disabled=true;btn.textContent='⟳ Création...';
@@ -368,10 +363,10 @@ window.submitPNJ=async function(){
     catch(e){console.warn('Photo upload:',e.message);}
   }
   try{
-    await addDoc(collection(db,'pnj'),{nom,prenom,age,race,role,titre,marital,taille,category,danger,photoUrl:finalPhoto,desc,motivations:{desc:motDesc,social:motSocial,economique:motEco,militaire:motMil},createdAt:serverTimestamp()});
+    await addDoc(collection(db,'pnj'),{nom,prenom,age,race,role,titre,marital,taille,category,danger,photoUrl:finalPhoto,desc,motivations:{desc:motDesc,social:'',economique:'',militaire:''},createdAt:serverTimestamp()});
     showToast('✓ PNJ créé !','success');
     closePNJModal();
-    ['pnj-nom','pnj-prenom','pnj-age','pnj-race','pnj-role','pnj-titre','pnj-marital','pnj-taille','pnj-photo-url','pnj-desc','pnj-mot-desc','pnj-mot-social','pnj-mot-eco','pnj-mot-mil'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+    ['pnj-nom','pnj-prenom','pnj-age','pnj-race','pnj-role','pnj-titre','pnj-marital','pnj-taille','pnj-photo-url','pnj-desc','pnj-mot-desc'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
     document.getElementById('pnj-category').value='';
     clearPnjPrev();
   }catch(e){showToast('⚠ '+e.message,'error');}
@@ -700,9 +695,7 @@ footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:22
         <div class="form-section-title">Motivations</div>
         <div class="mot-block">
           <div class="fg"><label class="fl">Description des motivations</label><textarea class="fta" id="pnj-mot-desc" placeholder="Décrivez les ambitions générales de ce PNJ..." style="min-height:72px"></textarea></div>
-          <div class="fg"><label class="fl mot-label social">Plan Social :</label><textarea class="fta" id="pnj-mot-social" placeholder="Objectifs sociaux, alliances, influence populaire..." style="min-height:58px"></textarea></div>
-          <div class="fg"><label class="fl mot-label eco">Plan Économique :</label><textarea class="fta" id="pnj-mot-eco" placeholder="Ressources convoitées, stratégie économique..." style="min-height:58px"></textarea></div>
-          <div class="fg" style="margin-bottom:0"><label class="fl mot-label mil">Plan Militaire :</label><textarea class="fta" id="pnj-mot-mil" placeholder="Stratégie militaire, armées, conquêtes..." style="min-height:58px"></textarea></div>
+
         </div>
       </div>
 
@@ -780,9 +773,7 @@ window.openEditPNJ = async function(id){
   document.getElementById('pnj-danger').value  = p.danger  || '';
   document.getElementById('pnj-photo-url').value = p.photoUrl || '';
   document.getElementById('pnj-mot-desc').value  = p.motivations?.desc    || '';
-  document.getElementById('pnj-mot-social').value= p.motivations?.social   || '';
-  document.getElementById('pnj-mot-eco').value   = p.motivations?.economique|| '';
-  document.getElementById('pnj-mot-mil').value   = p.motivations?.militaire || '';
+
   if(p.photoUrl) pnjPrevUrl(p.photoUrl);
 
   // Switch submit button to update mode
@@ -819,9 +810,7 @@ window.updatePNJ = async function(id){
   const photoUrl= document.getElementById('pnj-photo-url').value.trim();
   const desc    = document.getElementById('pnj-desc').value.trim();
   const motDesc = document.getElementById('pnj-mot-desc').value.trim();
-  const motSocial=document.getElementById('pnj-mot-social').value.trim();
-  const motEco  = document.getElementById('pnj-mot-eco').value.trim();
-  const motMil  = document.getElementById('pnj-mot-mil').value.trim();
+
   if(!nom||!prenom||!desc){ showToast('Remplissez Nom, Prénom et Description','error'); return; }
 
   const btn = document.getElementById('pnj-submit-btn');
@@ -838,11 +827,11 @@ window.updatePNJ = async function(id){
   }
 
   try{
-    await window._updateDoc(window._doc(window._db,'pnj',id),{nom,prenom,age,race,role,titre,marital,taille,category,danger,photoUrl:finalPhoto,desc,motivations:{desc:motDesc,social:motSocial,economique:motEco,militaire:motMil}});
+    await window._updateDoc(window._doc(window._db,'pnj',id),{nom,prenom,age,race,role,titre,marital,taille,category,danger,photoUrl:finalPhoto,desc,motivations:{desc:motDesc,social:'',economique:'',militaire:''}});
     showToast('✓ PNJ mis à jour !','success');
     // Update card in DOM
     const oldCard = document.querySelector(`.pnj-card[data-id="${id}"]`);
-    if(oldCard){ const newCard=buildPNJCard({id,...{nom,prenom,age,race,role,titre,marital,taille,category,danger,photoUrl:finalPhoto,desc,motivations:{desc:motDesc,social:motSocial,economique:motEco,militaire:motMil}}}); oldCard.replaceWith(newCard); }
+    if(oldCard){ const newCard=buildPNJCard({id,...{nom,prenom,age,race,role,titre,marital,taille,category,danger,photoUrl:finalPhoto,desc,motivations:{desc:motDesc,social:'',economique:'',militaire:''}}}); oldCard.replaceWith(newCard); }
     closePNJModal();
   }catch(e){ showToast('⚠ '+e.message,'error'); }
   btn.disabled=false; btn.textContent='✎ Mettre à jour';
