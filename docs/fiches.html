@@ -123,7 +123,7 @@ loadCards();
 
 <link rel="stylesheet" href="css/jaharta.css">
 <style>
-:root{--cyan:#00f5ff;--magenta:#ff006e;--gold:#ffd60a;--dark:#04060f;--dark2:#080d1a;--panel:rgba(0,245,255,0.035);--border:rgba(0,245,255,0.16);--text:#c8e0f0;--muted:#5a7a90;--r-humanoid:#00c8ff;--r-zooid:#44ff88;--r-mythzooid:#b06eff;--r-demon:#ff3030;--r-artificial:#ffd60a;--r-semiliquid:#00e5cc;--r-undead:#9a8cff;--rank-f:#6b7280;--rank-e:#9ca3af;--rank-d:#60a5fa;--rank-c:#34d399;--rank-b:#fbbf24;--rank-a:#f97316;--rank-s:#ef4444;--rank-ss:#ff006e;--rank-sss:#ffd60a;--rank-x:#e040fb;--rank-t:#c0f0ff;--rank-g:#ffe680;--rank-gp:#ffffff;--rank-z:#ff6060;}
+:root{--cyan:#00f5ff;--magenta:#ff006e;--gold:#ffd60a;--dark:#04060f;--dark2:#080d1a;--panel:rgba(0,245,255,0.035);--border:rgba(0,245,255,0.16);--text:#c8e0f0;--muted:#5a7a90;--r-Humanoids:#00c8ff;--r-Zooids:#44ff88;--r-MythZooids:#b06eff;--r-Demons:#ff3030;--r-Artificial:#ffd60a;--r-Semi-Liquid:#00e5cc;--r-Undead:#9a8cff;--rank-f:#6b7280;--rank-e:#9ca3af;--rank-d:#60a5fa;--rank-c:#34d399;--rank-b:#fbbf24;--rank-a:#f97316;--rank-s:#ef4444;--rank-ss:#ff006e;--rank-sss:#ffd60a;--rank-x:#e040fb;--rank-t:#c0f0ff;--rank-g:#ffe680;--rank-gp:#ffffff;--rank-z:#ff6060;}
 .add-btn{font-family:'Orbitron',sans-serif;font-weight:700;font-size:0.6rem;letter-spacing:0.18em;color:var(--dark)!important;background:var(--cyan);padding:8px 18px;clip-path:polygon(8px 0%,100% 0%,calc(100% - 8px) 100%,0% 100%);border:none!important;margin-left:8px;cursor:pointer;transition:background .2s,box-shadow .2s;}
 .add-btn:hover{background:#fff!important;box-shadow:0 0 20px var(--cyan);}
 .page-hero{position:relative;z-index:1;padding:52px 44px 44px;border-bottom:1px solid var(--border);background:linear-gradient(180deg,rgba(0,245,255,0.03) 0%,transparent 100%);}
@@ -154,23 +154,23 @@ loadCards();
 .rdot{width:6px;height:6px;border-radius:50%;background:currentColor;box-shadow:0 0 6px currentColor;flex-shrink:0;}
 .rcnt{font-family:'Orbitron',sans-serif;font-size:0.5rem;font-weight:700;background:rgba(255,255,255,0.08);padding:2px 6px;border-radius:2px;}
 .race-btn[data-race="all"]{color:var(--text);border-color:rgba(200,224,240,0.22);}
-.race-btn[data-race="humanoid"]{color:var(--r-humanoid);border-color:rgba(0,200,255,0.22);}
-.race-btn[data-race="zooid"]{color:var(--r-zooid);border-color:rgba(68,255,136,0.22);}
-.race-btn[data-race="mythzooid"]{color:var(--r-mythzooid);border-color:rgba(176,110,255,0.22);}
-.race-btn[data-race="demon"]{color:var(--r-demon);border-color:rgba(255,48,48,0.22);}
-.race-btn[data-race="artificial"]{color:var(--r-artificial);border-color:rgba(255,214,10,0.22);}
-.race-btn[data-race="semiliquid"]{color:var(--r-semiliquid);border-color:rgba(0,229,204,0.22);}
-.race-btn[data-race="undead"]{color:var(--r-undead);border-color:rgba(154,140,255,0.22);}
+.race-btn[data-race="Humanoids"]{color:var(--r-Humanoids);border-color:rgba(0,200,255,0.22);}
+.race-btn[data-race="Zooids"]{color:var(--r-Zooids);border-color:rgba(68,255,136,0.22);}
+.race-btn[data-race="MythZooids"]{color:var(--r-MythZooids);border-color:rgba(176,110,255,0.22);}
+.race-btn[data-race="Demons"]{color:var(--r-Demons);border-color:rgba(255,48,48,0.22);}
+.race-btn[data-race="Artificial"]{color:var(--r-Artificial);border-color:rgba(255,214,10,0.22);}
+.race-btn[data-race="Semi-Liquid"]{color:var(--r-Semi-Liquid);border-color:rgba(0,229,204,0.22);}
+.race-btn[data-race="Undead"]{color:var(--r-Undead);border-color:rgba(154,140,255,0.22);}
 .race-btn.active,.race-btn:hover{background:rgba(255,255,255,0.035);box-shadow:0 0 10px rgba(255,255,255,0.04);}
 .cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(295px,1fr));gap:22px;}
 .rp-card{position:relative;background:var(--dark2);border:1px solid var(--border);overflow:hidden;clip-path:polygon(22px 0%,100% 0%,100% calc(100% - 22px),calc(100% - 22px) 100%,0% 100%,0% 22px);transition:border-color .3s,box-shadow .3s,transform .28s;cursor:default;display:flex;flex-direction:column;}
-.rp-card[data-race="humanoid"]:hover{border-color:var(--r-humanoid);box-shadow:0 0 28px rgba(0,200,255,0.14),0 12px 38px rgba(0,0,0,0.5);transform:translateY(-6px);}
-.rp-card[data-race="zooid"]:hover{border-color:var(--r-zooid);box-shadow:0 0 28px rgba(68,255,136,0.14),0 12px 38px rgba(0,0,0,0.5);transform:translateY(-6px);}
-.rp-card[data-race="mythzooid"]:hover{border-color:var(--r-mythzooid);box-shadow:0 0 28px rgba(176,110,255,0.16),0 12px 38px rgba(0,0,0,0.5);transform:translateY(-6px);}
-.rp-card[data-race="demon"]:hover{border-color:var(--r-demon);box-shadow:0 0 28px rgba(255,48,48,0.16),0 12px 38px rgba(0,0,0,0.5);transform:translateY(-6px);}
-.rp-card[data-race="artificial"]:hover{border-color:var(--r-artificial);box-shadow:0 0 28px rgba(255,214,10,0.14),0 12px 38px rgba(0,0,0,0.5);transform:translateY(-6px);}
-.rp-card[data-race="semiliquid"]:hover{border-color:var(--r-semiliquid);box-shadow:0 0 28px rgba(0,229,204,0.16),0 12px 38px rgba(0,0,0,0.5);transform:translateY(-6px);}
-.rp-card[data-race="undead"]:hover{border-color:var(--r-undead);box-shadow:0 0 28px rgba(154,140,255,0.16),0 12px 38px rgba(0,0,0,0.5);transform:translateY(-6px);}
+.rp-card[data-race="Humanoids"]:hover{border-color:var(--r-Humanoids);box-shadow:0 0 28px rgba(0,200,255,0.14),0 12px 38px rgba(0,0,0,0.5);transform:translateY(-6px);}
+.rp-card[data-race="Zooids"]:hover{border-color:var(--r-Zooids);box-shadow:0 0 28px rgba(68,255,136,0.14),0 12px 38px rgba(0,0,0,0.5);transform:translateY(-6px);}
+.rp-card[data-race="MythZooids"]:hover{border-color:var(--r-MythZooids);box-shadow:0 0 28px rgba(176,110,255,0.16),0 12px 38px rgba(0,0,0,0.5);transform:translateY(-6px);}
+.rp-card[data-race="Demons"]:hover{border-color:var(--r-Demons);box-shadow:0 0 28px rgba(255,48,48,0.16),0 12px 38px rgba(0,0,0,0.5);transform:translateY(-6px);}
+.rp-card[data-race="Artificial"]:hover{border-color:var(--r-Artificial);box-shadow:0 0 28px rgba(255,214,10,0.14),0 12px 38px rgba(0,0,0,0.5);transform:translateY(-6px);}
+.rp-card[data-race="Semi-Liquid"]:hover{border-color:var(--r-Semi-Liquid);box-shadow:0 0 28px rgba(0,229,204,0.16),0 12px 38px rgba(0,0,0,0.5);transform:translateY(-6px);}
+.rp-card[data-race="Undead"]:hover{border-color:var(--r-Undead);box-shadow:0 0 28px rgba(154,140,255,0.16),0 12px 38px rgba(0,0,0,0.5);transform:translateY(-6px);}
 .card-photo{position:relative;width:100%;height:240px;overflow:hidden;flex-shrink:0;background:#0a0f1e;}
 .card-photo img{width:100%;height:100%;object-fit:cover;object-position:top center;filter:saturate(1.1) contrast(1.05);transition:transform .5s,filter .4s;}
 .rp-card:hover .card-photo img{transform:scale(1.07);filter:saturate(1.3) contrast(1.08);}
@@ -360,13 +360,13 @@ footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:22
   <div class="race-filter">
     <span class="filter-group-label">Race :</span>
     <button class="race-btn active" data-race="all" onclick="filterRace('all',this)"><span class="rdot" style="background:var(--text);box-shadow:none"></span>Tous<span class="rcnt" id="cnt-all">0</span></button>
-    <button class="race-btn" data-race="humanoid" onclick="filterRace('humanoid',this)"><span class="rdot"></span>Humanoids<span class="rcnt" id="cnt-humanoid">0</span></button>
-    <button class="race-btn" data-race="zooid" onclick="filterRace('zooid',this)"><span class="rdot"></span>Zooids<span class="rcnt" id="cnt-zooid">0</span></button>
-    <button class="race-btn" data-race="mythzooid" onclick="filterRace('mythzooid',this)"><span class="rdot"></span>Mythical Zooids<span class="rcnt" id="cnt-mythzooid">0</span></button>
-    <button class="race-btn" data-race="demon" onclick="filterRace('demon',this)"><span class="rdot"></span>Demons<span class="rcnt" id="cnt-demon">0</span></button>
-    <button class="race-btn" data-race="artificial" onclick="filterRace('artificial',this)"><span class="rdot"></span>Artificial<span class="rcnt" id="cnt-artificial">0</span></button>
-    <button class="race-btn" data-race="semiliquid" onclick="filterRace('semiliquid',this)"><span class="rdot"></span>Semi-Liquid<span class="rcnt" id="cnt-semiliquid">0</span></button>
-    <button class="race-btn" data-race="undead" onclick="filterRace('undead',this)"><span class="rdot"></span>Undead<span class="rcnt" id="cnt-undead">0</span></button>
+    <button class="race-btn" data-race="Humanoids"  onclick="filterRace('Humanoids',this)"><span class="rdot"></span>Humanoids<span class="rcnt" id="cnt-Humanoids">0</span></button>
+    <button class="race-btn" data-race="Zooids"     onclick="filterRace('Zooids',this)"><span class="rdot"></span>Zooids<span class="rcnt" id="cnt-Zooids">0</span></button>
+    <button class="race-btn" data-race="MythZooids" onclick="filterRace('MythZooids',this)"><span class="rdot"></span>Mythical Zooids<span class="rcnt" id="cnt-MythZooids">0</span></button>
+    <button class="race-btn" data-race="Demons"     onclick="filterRace('Demons',this)"><span class="rdot"></span>Demons<span class="rcnt" id="cnt-Demons">0</span></button>
+    <button class="race-btn" data-race="Artificial" onclick="filterRace('Artificial',this)"><span class="rdot"></span>Artificial<span class="rcnt" id="cnt-Artificial">0</span></button>
+    <button class="race-btn" data-race="Semi-Liquid" onclick="filterRace('Semi-Liquid',this)"><span class="rdot"></span>Semi-Liquid<span class="rcnt" id="cnt-Semi-Liquid">0</span></button>
+    <button class="race-btn" data-race="Undead"     onclick="filterRace('Undead',this)"><span class="rdot"></span>Undead<span class="rcnt" id="cnt-Undead">0</span></button>
   </div>
 
   <!-- ── Filtre par rang de puissance ── -->
@@ -418,10 +418,13 @@ footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:22
         <div class="fg"><label class="fl">Groupe de Race *</label>
           <select class="fs" id="f-race" onchange="updateRaceSpecific(this.value)">
             <option value="">— Choisir —</option>
-            <option value="humanoid">Humanoid</option><option value="zooid">Zooid</option>
-            <option value="mythzooid">Mythical Zooid</option><option value="demon">Demon</option>
-            <option value="artificial">Artificial</option><option value="semiliquid">Semi-Liquid</option>
-            <option value="undead">Undead</option>
+            <option value="Humanoids">Humanoids</option>
+            <option value="Zooids">Zooids</option>
+            <option value="MythZooids">Mythical Zooids</option>
+            <option value="Demons">Demons</option>
+            <option value="Artificial">Artificial</option>
+            <option value="Semi-Liquid">Semi-Liquid</option>
+            <option value="Undead">Undead</option>
           </select>
         </div>
         <div class="fg"><label class="fl">Race spécifique *</label>
