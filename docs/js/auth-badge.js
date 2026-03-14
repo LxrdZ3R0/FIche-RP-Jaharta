@@ -35,11 +35,15 @@ const app  = getApps().length ? getApps()[0] : initializeApp(cfg);
 const auth = getAuth(app);
 
 onAuthStateChanged(auth, user => {
-  /* Badge vert "ADMIN" dans le nav */
+
+  /* ── État admin global ── */
+  window._isAdmin = !!user;
+
+  /* ── Badge vert "ADMIN" dans le nav ── */
   const badge = document.getElementById('admin-badge');
   if (badge) badge.classList.toggle('visible', !!user);
 
-  /* Lien "⚙ Connexion" / "⚙ Connecté" */
+  /* ── Lien "⚙ Connexion" / "⚙ Connecté" ── */
   const navLink = document.querySelector('.nav-admin');
   if (navLink) {
     if (user) {
@@ -54,4 +58,13 @@ onAuthStateChanged(auth, user => {
       navLink.style.opacity = '';
     }
   }
+
+  /* ── Bouton "+ Ajouter une fiche" (fiches.html) ── */
+  const addBtn = document.getElementById('add-char-btn');
+  if (addBtn) addBtn.style.display = user ? 'inline-flex' : 'none';
+
+  /* ── Dispatch un event custom pour les scripts non-module ──
+     Permet à n'importe quelle page d'écouter : 
+     document.addEventListener('jaharta:auth', e => { if(e.detail.user) ... }) */
+  document.dispatchEvent(new CustomEvent('jaharta:auth', { detail: { user } }));
 });
