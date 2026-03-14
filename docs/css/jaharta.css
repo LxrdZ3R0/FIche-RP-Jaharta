@@ -53,6 +53,20 @@
 /* ══════════════════════════════════════════════════════
    2. RESET & BASE
    ══════════════════════════════════════════════════════ */
+
+/* ── Classe ajoutée sur <body> à l'ouverture d'un modal ──────────────
+   Suspend les effets de fond coûteux (scanlines, grille, animations)
+   pour éviter que le navigateur doive les recalculer derrière le modal.
+   Retirée à la fermeture du modal. */
+body.modal-open::before,
+body.modal-open::after {
+  display: none;   /* suspend scanlines CRT + grille de fond */
+}
+body.modal-open .hero-title .c.glitching,
+body.modal-open .hero-title .c.glitching::before,
+body.modal-open .hero-title .c.glitching::after {
+  animation: none; /* suspend le glitch du titre hero */
+}
 *, *::before, *::after {
   box-sizing: border-box;
   margin:  0;
