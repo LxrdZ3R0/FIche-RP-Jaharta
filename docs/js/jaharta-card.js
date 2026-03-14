@@ -71,8 +71,9 @@ class JahartaCard extends HTMLElement {
 
     /* ── Racine : div.rp-card (styles dans jaharta.css) ── */
     const card = document.createElement('div');
-    card.className  = 'rp-card';
-    card.dataset.race = ch.race || '';
+    card.className    = 'rp-card';
+    card.dataset.race   = ch.race  || '';  /* pour filterRace() */
+    card.dataset.rank   = ch.rank  || '';  /* pour filterRank() */
 
     /* ──────────────────────────────
        PHOTO + éléments superposés
@@ -203,6 +204,14 @@ class JahartaCard extends HTMLElement {
     ln.textContent = san(ch.lastname || '');
     body.appendChild(ln);
 
+    /* Âge — affiché si renseigné */
+    if (ch.age) {
+      const age = document.createElement('div');
+      age.className   = 'card-age';
+      age.textContent = ch.age;
+      body.appendChild(age);
+    }
+
     /* Pilule race · race spécifique */
     const pill = document.createElement('div');
     pill.className = 'card-rpill';
@@ -324,6 +333,10 @@ class JahartaCard extends HTMLElement {
     const deco = document.createElement('div');
     deco.className = 'cdeco';
     card.appendChild(deco);
+
+    /* ── Exposition des attributs de filtrage sur l'élément hôte ── */
+    this.dataset.race = ch.race || '';
+    this.dataset.rank = ch.rank || '';
 
     /* ── Insertion finale : remplace le contenu précédent ── */
     this.replaceChildren(card);
