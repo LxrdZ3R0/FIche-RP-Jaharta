@@ -1,21 +1,27 @@
 <!DOCTYPE html>
 <!--
   ═══════════════════════════════════════════════════════════════════════
-  admin.html — Panel d'administration Jaharta RP
+  admin.html — Panel d'administration Jaharta RP v2
   ───────────────────────────────────────────────────────────────────────
-  Fonctionnalités :
-  - Écran de login Firebase (email / mot de passe)
-  - Vue temps réel de toutes les fiches (en attente / validées / rejetées)
-  - Actions sur fiches : Valider, Rejeter (avec motif), Remettre en attente, Supprimer
-  - Vue temps réel des PNJ avec lien vers pnj.html
-  - Compteurs et badges par onglet
+  NOUVEAUTÉS v2 :
+  ┌─────────────────────────────────────────────────────────────────────┐
+  │ AUTH      Google Sign-In (popup) + email/password en fallback       │
+  │ SÉCURITÉ  Whitelist Firestore : admins/{uid} → accès refusé si abs. │
+  │ RÔLES     admin  → accès total (valider, rejeter, supprimer, logs)  │
+  │           modo   → valider + rejeter uniquement, pas de suppression │
+  │ LOGS      Chaque action écrit dans Firestore logs/ (onglet dédié)   │
+  └─────────────────────────────────────────────────────────────────────┘
 
-  Firebase :
-  - Auth      : signInWithEmailAndPassword + signOut + onAuthStateChanged
-  - Firestore : onSnapshot sur 'fiches' (orderBy createdAt desc) + 'pnj'
-  - Pas d'accès au Storage sur cette page
+  COLLECTION admins/ (à créer dans Firebase Console) :
+    admins/{uid} → { email: "...", role: "admin" | "modo", name: "..." }
 
-  Accès : réservé aux comptes créés dans Firebase Authentication Console.
+  COLLECTION logs/ (auto-créée à la première action) :
+    logs/{auto} → { action, targetName, targetId, byEmail, byUid,
+                    byName, role, at: serverTimestamp() }
+
+  RÈGLES FIRESTORE à ajouter :
+    match /admins/{uid} { allow read: if request.auth != null; }
+    match /logs/{id}    { allow read, write: if request.auth != null; }
   ═══════════════════════════════════════════════════════════════════════
 -->
 <html lang="fr">
@@ -29,227 +35,238 @@
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=Share+Tech+Mono&family=Rajdhani:wght@300;400;500;600&display=swap" rel="stylesheet">
 
 <!-- ═══════════════════════════════════════════════════
-     FIREBASE — Mêmes clés que dans index.html
+     FIREBASE MODULE — Auth + Firestore + Logs
      ═══════════════════════════════════════════════════ -->
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getFirestore, collection, getDocs, doc, updateDoc, deleteDoc, query, orderBy, where, onSnapshot }
-    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-  import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged }
-    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { initializeApp }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, collection, doc, getDoc, addDoc,
+         updateDoc, deleteDoc, query, orderBy, onSnapshot,
+         serverTimestamp, enableIndexedDbPersistence }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getAuth, onAuthStateChanged, signOut,
+         GoogleAuthProvider, signInWithPopup,
+         signInWithEmailAndPassword }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
-  // ⚠️ REMPLACEZ PAR VOS CLÉS FIREBASE (identiques à index.html)
-  /* ── Config Firebase ── */
-  const firebaseConfig = {
-    apiKey:            "AIzaSyAru7qZX8Gu_b8Y3oNDV-a5PmkrrkRjkcs",
-    authDomain:        "jaharta-rp.firebaseapp.com",
-    projectId:         "jaharta-rp",
-    storageBucket:     "jaharta-rp.firebasestorage.app",
-    messagingSenderId: "217075417489",
-    appId:             "1:217075417489:web:4d1e2df422a5cd42411a30",
-    measurementId:     "G-15JSSBZWCH"
-  };
+/* ── Config Firebase ── */
+const firebaseConfig = {
+  apiKey:            "AIzaSyAru7qZX8Gu_b8Y3oNDV-a5PmkrrkRjkcs",
+  authDomain:        "jaharta-rp.firebaseapp.com",
+  projectId:         "jaharta-rp",
+  storageBucket:     "jaharta-rp.firebasestorage.app",
+  messagingSenderId: "217075417489",
+  appId:             "1:217075417489:web:4d1e2df422a5cd42411a30",
+};
 
-  const app  = initializeApp(firebaseConfig);
-  const db   = getFirestore(app);
-  const auth = getAuth(app);
+const app  = initializeApp(firebaseConfig);
+const db   = getFirestore(app);
+const auth = getAuth(app);
 
-  /* ── Auth : redirige vers login ou panel selon l'état de connexion ── */
-  onAuthStateChanged(auth, user => {
-    if (user) {
-      document.getElementById('login-screen').style.display  = 'none';
-      document.getElementById('admin-panel').style.display   = 'block';
-      document.getElementById('admin-email').textContent = user.email;
-      loadAllFiches();
-      loadPNJ();
-    } else {
-      document.getElementById('login-screen').style.display  = 'flex';
-      document.getElementById('admin-panel').style.display   = 'none';
-    }
-  });
+/* ── Cache offline ── */
+enableIndexedDbPersistence(db).catch(e => {
+  if (e.code !== 'failed-precondition' && e.code !== 'unimplemented')
+    console.warn('[offline cache]', e.code);
+});
 
-  /* ── Connexion par email/mot de passe ── */
-  window.adminLogin = async function() {
-    const email    = document.getElementById('login-email').value;
-    const password = document.getElementById('login-password').value;
-    const errEl    = document.getElementById('login-error');
-    errEl.textContent = '';
-    try {
-      await signInWithEmailAndPassword(auth, email, password);
-    } catch(e) {
-      errEl.textContent = 'Email ou mot de passe incorrect.';
-    }
-  };
+/* ════════════════════════════════════════════════════════════════════
+   ÉTAT GLOBAL
+   ════════════════════════════════════════════════════════════════════ */
+let currentAdmin = null; /* { uid, email, name, role } */
 
-  /* ── Déconnexion (retour à l'écran login) ── */
-  window.adminLogout = async function() {
-    await signOut(auth);
-  };
+/* ════════════════════════════════════════════════════════════════════
+   AUTH STATE
+   ════════════════════════════════════════════════════════════════════ */
+onAuthStateChanged(auth, async user => {
+  if (!user) { showScreen('login'); currentAdmin = null; return; }
 
-  /**
-   * Écoute temps réel toutes les fiches ordonnées par date.
-   * Trie côté serveur et dispatche dans 3 tableaux : pending/approved/rejected.
-   */
-  function loadAllFiches() {
-    const q = query(collection(db, "fiches"), orderBy("createdAt", "desc"));
-
-    onSnapshot(q, snap => {
-      const all      = [];
-      const pending  = [];
-      const approved = [];
-      const rejected = [];
-
-      snap.forEach(d => {
-        const f = { id: d.id, ...d.data() };
-        all.push(f);
-        if (f.status === 'en_attente') pending.push(f);
-        else if (f.status === 'validee') approved.push(f);
-        else if (f.status === 'rejetee') rejected.push(f);
-      });
-
-      // Update counters
-      document.getElementById('cnt-pending').textContent  = pending.length;
-      document.getElementById('cnt-approved').textContent = approved.length;
-      document.getElementById('cnt-rejected').textContent = rejected.length;
-      document.getElementById('cnt-total').textContent    = all.length;
-
-      // Render tables
-      renderTable('table-pending',  pending,  'pending');
-      renderTable('table-approved', approved, 'approved');
-      renderTable('table-rejected', rejected, 'rejected');
-
-      // Badge on tab
-      document.getElementById('badge-pending').textContent  = pending.length || '';
-      document.getElementById('badge-pending').style.display = pending.length ? 'inline' : 'none';
-
-    }, err => {
-      console.warn("Firestore listener error:", err.message);
-      document.getElementById('admin-panel').innerHTML =
-        `<div style="text-align:center;padding:80px;font-family:'Share Tech Mono',monospace;color:#ff3030">
-          ⚠ Firebase non configuré.<br><br>
-          <span style="color:#5a7a90;font-size:0.75rem">Ajoutez vos clés Firebase dans admin.html et index.html</span>
-        </div>`;
-    });
-  }
-
-  /** Valide une fiche : status → 'validee' (visible publiquement) */
-  window.validateFiche = async function(id) {
-    await updateDoc(doc(db, "fiches", id), {
-      status: "validee",
-      validatedAt: new Date()
-    });
-    showToast('✓ Fiche validée et publiée !', 'success');
-  };
-
-  /** Rejette une fiche avec motif optionnel */
-  window.rejectFiche = async function(id) {
-    const reason = document.getElementById('reject-reason-' + id)?.value || '';
-    await updateDoc(doc(db, "fiches", id), {
-      status: "rejetee",
-      rejectReason: reason,
-      rejectedAt: new Date()
-    });
-    showToast('✗ Fiche rejetée.', 'error');
-  };
-
-  /** Supprime définitivement une fiche de Firestore */
-  window.deleteFiche = async function(id) {
-    if (!confirm('Supprimer définitivement cette fiche ?')) return;
-    await deleteDoc(doc(db, "fiches", id));
-    showToast('Fiche supprimée.', 'error');
-  };
-
-  /** Remet une fiche en attente (annule validation ou rejet) */
-  window.restoreFiche = async function(id) {
-    await updateDoc(doc(db, "fiches", id), { status: "en_attente" });
-    showToast('Fiche remise en attente.', 'success');
-  };
-
-  /* ── Écoute temps réel des PNJ pour l'onglet PNJ du panel ── */
-  function loadPNJ() {
-    const q = query(collection(db, "pnj"), orderBy("createdAt", "desc"));
-    onSnapshot(q, snap => {
-      const pnjs = [];
-      snap.forEach(d => pnjs.push({id: d.id, ...d.data()}));
-      document.getElementById('cnt-pnj').textContent = pnjs.length;
-      document.getElementById('badge-pnj').textContent = pnjs.length || '';
-      document.getElementById('badge-pnj').style.display = pnjs.length ? 'inline' : 'none';
-      renderPNJTable(pnjs);
-    }, err => { console.warn("PNJ listener:", err.message); });
-  }
-
-  function renderPNJTable(pnjs) {
-    const el = document.getElementById('table-pnj');
-    if (!pnjs.length) {
-      el.innerHTML = `<div class="empty-list"><span class="empty-list-icon">◆</span>Aucun PNJ créé pour le moment.</div>`;
+  showScreen('loading');
+  try {
+    /* Vérification whitelist */
+    const snap = await getDoc(doc(db, 'admins', user.uid));
+    if (!snap.exists()) {
+      await signOut(auth);
+      showScreen('login');
+      document.getElementById('login-error').textContent =
+        '⚠ Accès refusé. Votre compte n\'est pas dans la whitelist admin.';
       return;
     }
-    const catColors = {politique:'#60a5fa',mystique:'#b06eff',ennemi:'#ff3030',allie:'#34d399',neutre:'#fbbf24'};
-    const catLabels = {politique:'Politique',mystique:'Mystique',ennemi:'Ennemi',allie:'Allié',neutre:'Neutre'};
-    el.innerHTML = '';
-    pnjs.forEach(p => {
-      const c = catColors[p.category] || '#00c8ff';
-      const cl = catLabels[p.category] || p.category;
-      const date = p.createdAt?.toDate ? p.createdAt.toDate().toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'}) : '–';
-      const hasMotivations = p.motivations && (p.motivations.social || p.motivations.economique || p.motivations.militaire);
 
-      const row = document.createElement('div');
-      row.className = 'fiche-row';
-      row.style.borderLeftColor = c + '55';
+    const data   = snap.data();
+    currentAdmin = {
+      uid:   user.uid,
+      email: user.email,
+      name:  data.name || user.displayName || user.email,
+      role:  data.role || 'modo',
+    };
 
-      const thumb = document.createElement('div');
-      thumb.className = 'fiche-thumb';
-      if (p.photoUrl) {
-        const img = document.createElement('img'); img.src = p.photoUrl;
-        img.onerror = () => { thumb.innerHTML = `<div class="fiche-thumb-ph" style="background:linear-gradient(135deg,${c}18,#04060f);color:${c}">${(p.prenom||'?')[0]}</div>`; };
-        thumb.appendChild(img);
-      } else {
-        thumb.innerHTML = `<div class="fiche-thumb-ph" style="background:linear-gradient(135deg,${c}18,#04060f);color:${c}">${(p.prenom||'?')[0]}</div>`;
-      }
-      row.appendChild(thumb);
+    /* Expose pour les fonctions non-module */
+    window._adminRole  = currentAdmin.role;
+    window._adminEmail = currentAdmin.email;
+    window._adminName  = currentAdmin.name;
 
-      const info = document.createElement('div');
-      info.className = 'fiche-info';
-      const motHTML = hasMotivations ? `
-        <div style="margin-top:5px;font-family:'Share Tech Mono',monospace;font-size:0.56rem;color:var(--muted);line-height:1.7;">
-          ${p.motivations.social?`<div><span style="color:#60a5fa">Social :</span> ${p.motivations.social.substring(0,60)}${p.motivations.social.length>60?'…':''}</div>`:''}
-          ${p.motivations.economique?`<div><span style="color:#ffd60a">Économique :</span> ${p.motivations.economique.substring(0,60)}${p.motivations.economique.length>60?'…':''}</div>`:''}
-          ${p.motivations.militaire?`<div><span style="color:#ff3030">Militaire :</span> ${p.motivations.militaire.substring(0,60)}${p.motivations.militaire.length>60?'…':''}</div>`:''}
-        </div>` : '';
-      info.innerHTML = `
-        <div class="fiche-name">${p.prenom||''} ${p.nom||''}</div>
-        <div class="fiche-meta">
-          <span class="fiche-tag" style="color:${c};border-color:${c}44;background:${c}0e">${cl}</span>
-          ${p.race?`<span class="fiche-tag" style="color:var(--muted);border-color:rgba(90,122,144,0.3)">${p.race}</span>`:''}
-          ${p.role?`<span class="fiche-tag" style="color:var(--muted);border-color:rgba(90,122,144,0.3)">${p.role}</span>`:''}
-          <span class="fiche-tag" style="color:var(--muted);border-color:rgba(90,122,144,0.25)">${p.danger||'?'}</span>
-        </div>
-        <div class="fiche-desc">${p.desc||''}</div>
-        ${p.titre?`<div style="font-family:'Share Tech Mono',monospace;font-size:0.57rem;color:${c};margin-top:3px">// ${p.titre}</div>`:''}
-        ${motHTML}
-        <div class="fiche-date">Créé le ${date}</div>
-      `;
-      row.appendChild(info);
+    renderAdminHeader();
+    showScreen('panel');
+    loadAllFiches();
+    loadPNJ();
+    if (currentAdmin.role === 'admin') loadLogs();
 
-      const actions = document.createElement('div');
-      actions.className = 'fiche-actions';
-      actions.innerHTML = `
-        <div class="fiche-actions-row">
-          <a href="pnj.html" target="_blank" class="action-btn view">↗ Voir page PNJ</a>
-          <button class="action-btn delete" onclick="deletePNJ('${p.id}')">✕ Supprimer</button>
-        </div>
-      `;
-      row.appendChild(actions);
-      el.appendChild(row);
-    });
+  } catch(err) {
+    document.getElementById('login-error').textContent = '⚠ ' + err.message;
+    showScreen('login');
   }
+});
 
-  /* ─── SUPPRIMER PNJ ─── */
-  window.deletePNJ = async function(id) {
-    if (!confirm('Supprimer définitivement ce PNJ ?')) return;
-    await deleteDoc(doc(db, "pnj", id));
-    showToast('PNJ supprimé.', 'error');
-  };
+/* ════════════════════════════════════════════════════════════════════
+   CONNEXION
+   ════════════════════════════════════════════════════════════════════ */
+window.loginGoogle = async function() {
+  const errEl = document.getElementById('login-error');
+  errEl.textContent = '';
+  try {
+    await signInWithPopup(auth, new GoogleAuthProvider());
+  } catch(e) {
+    if (e.code !== 'auth/popup-closed-by-user')
+      errEl.textContent = '⚠ Erreur Google : ' + e.message;
+  }
+};
+
+window.adminLogin = async function() {
+  const email    = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const errEl    = document.getElementById('login-error');
+  errEl.textContent = '';
+  if (!email || !password) { errEl.textContent = 'Remplissez email et mot de passe.'; return; }
+  try {
+    await signInWithEmailAndPassword(auth, email, password);
+  } catch(e) {
+    errEl.textContent = e.code === 'auth/invalid-credential'
+      ? 'Email ou mot de passe incorrect.' : '⚠ ' + e.message;
+  }
+};
+
+window.adminLogout = async function() {
+  currentAdmin = null; window._adminRole = null;
+  await signOut(auth);
+};
+
+/* ════════════════════════════════════════════════════════════════════
+   LOGS
+   ════════════════════════════════════════════════════════════════════ */
+async function writeLog(action, targetId, targetName) {
+  if (!currentAdmin) return;
+  try {
+    await addDoc(collection(db, 'logs'), {
+      action, targetId, targetName,
+      byEmail: currentAdmin.email,
+      byUid:   currentAdmin.uid,
+      byName:  currentAdmin.name,
+      role:    currentAdmin.role,
+      at:      serverTimestamp(),
+    });
+  } catch(e) { console.warn('[log write]', e.message); }
+}
+
+function loadLogs() {
+  const q = query(collection(db, 'logs'), orderBy('at', 'desc'));
+  onSnapshot(q, snap => {
+    const logs = [];
+    snap.forEach(d => logs.push({ id: d.id, ...d.data() }));
+    document.getElementById('cnt-logs').textContent = logs.length;
+    renderLogs(logs);
+  }, err => console.warn('[logs]', err.message));
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   FICHES
+   ════════════════════════════════════════════════════════════════════ */
+function loadAllFiches() {
+  const q = query(collection(db, 'fiches'), orderBy('createdAt', 'desc'));
+  onSnapshot(q, snap => {
+    const all = [], pending = [], approved = [], rejected = [];
+    snap.forEach(d => {
+      const f = { id: d.id, ...d.data() };
+      all.push(f);
+      if      (f.status === 'en_attente') pending.push(f);
+      else if (f.status === 'validee')    approved.push(f);
+      else if (f.status === 'rejetee')    rejected.push(f);
+    });
+    document.getElementById('cnt-pending').textContent  = pending.length;
+    document.getElementById('cnt-approved').textContent = approved.length;
+    document.getElementById('cnt-rejected').textContent = rejected.length;
+    document.getElementById('cnt-total').textContent    = all.length;
+    const bp = document.getElementById('badge-pending');
+    bp.textContent = pending.length || '';
+    bp.style.display = pending.length ? 'inline' : 'none';
+    renderTable('table-pending',  pending,  'pending');
+    renderTable('table-approved', approved, 'approved');
+    renderTable('table-rejected', rejected, 'rejected');
+  }, err => console.warn('[fiches]', err.message));
+}
+
+window.validateFiche = async function(id, name) {
+  await updateDoc(doc(db,'fiches',id), { status:'validee', validatedAt: new Date() });
+  await writeLog('validate', id, name);
+  showToast('✓ Fiche validée et publiée !', 'success');
+};
+window.rejectFiche = async function(id, name) {
+  const reason = document.getElementById('reject-reason-'+id)?.value || '';
+  await updateDoc(doc(db,'fiches',id), { status:'rejetee', rejectReason: reason, rejectedAt: new Date() });
+  await writeLog('reject', id, name + (reason ? ` — ${reason}` : ''));
+  showToast('✗ Fiche rejetée.', 'error');
+};
+window.deleteFiche = async function(id, name) {
+  if (!confirm('Supprimer définitivement cette fiche ?')) return;
+  await deleteDoc(doc(db,'fiches',id));
+  await writeLog('delete', id, name);
+  showToast('Fiche supprimée.', 'error');
+};
+window.restoreFiche = async function(id, name) {
+  await updateDoc(doc(db,'fiches',id), { status:'en_attente' });
+  await writeLog('restore', id, name);
+  showToast('↺ Fiche remise en attente.', 'success');
+};
+
+/* ════════════════════════════════════════════════════════════════════
+   PNJ
+   ════════════════════════════════════════════════════════════════════ */
+function loadPNJ() {
+  const q = query(collection(db, 'pnj'), orderBy('createdAt', 'desc'));
+  onSnapshot(q, snap => {
+    const pnjs = [];
+    snap.forEach(d => pnjs.push({ id: d.id, ...d.data() }));
+    document.getElementById('cnt-pnj').textContent = pnjs.length;
+    const bp = document.getElementById('badge-pnj');
+    bp.textContent = pnjs.length || '';
+    bp.style.display = pnjs.length ? 'inline' : 'none';
+    renderPNJTable(pnjs);
+  }, err => console.warn('[pnj]', err.message));
+}
+window.deletePNJ = async function(id, name) {
+  if (!confirm('Supprimer définitivement ce PNJ ?')) return;
+  await deleteDoc(doc(db,'pnj',id));
+  await writeLog('delete_pnj', id, name);
+  showToast('PNJ supprimé.', 'error');
+};
+
+/* ════════════════════════════════════════════════════════════════════
+   HELPERS MODULE
+   ════════════════════════════════════════════════════════════════════ */
+function showScreen(name) {
+  document.getElementById('login-screen').style.display   = name==='login'   ? 'flex'  : 'none';
+  document.getElementById('loading-screen').style.display = name==='loading' ? 'flex'  : 'none';
+  document.getElementById('panel-screen').style.display   = name==='panel'   ? 'block' : 'none';
+}
+
+function renderAdminHeader() {
+  if (!currentAdmin) return;
+  document.getElementById('admin-name').textContent = currentAdmin.name;
+  const rb = document.getElementById('role-badge');
+  rb.textContent = currentAdmin.role.toUpperCase();
+  rb.className   = 'role-badge role-' + currentAdmin.role;
+  const logsTab = document.getElementById('tab-btn-logs');
+  if (logsTab) logsTab.style.display = currentAdmin.role === 'admin' ? 'flex' : 'none';
+}
 </script>
 
 <link rel="stylesheet" href="css/jaharta.css">
@@ -259,254 +276,293 @@
   --accent-rgb:    255,214,10;
   --accent-border: rgba(255,214,10,0.22);
   --accent-bg:     rgba(255,214,10,0.04);
+  --cyan:#00f5ff; --magenta:#ff006e; --gold:#ffd60a;
+  --dark:#04060f; --dark2:#080d1a; --dark3:#0c1220;
+  --panel:rgba(0,245,255,0.035); --border:rgba(0,245,255,0.16);
+  --text:#c8e0f0; --muted:#5a7a90;
+  --green:#00ff88; --red:#ff3030; --orange:#f97316;
 }
-  :root {
-    --cyan:#00f5ff; --magenta:#ff006e; --gold:#ffd60a;
-    --dark:#04060f; --dark2:#080d1a; --dark3:#0c1220;
-    --panel:rgba(0,245,255,0.035); --border:rgba(0,245,255,0.16);
-    --text:#c8e0f0; --muted:#5a7a90;
-    --green:#00ff88; --red:#ff3030; --orange:#f97316;
-  }
 
-  /* LOGIN */
-  #login-screen{position:fixed;inset:0;background:var(--dark);z-index:500;display:flex;align-items:center;justify-content:center;}
-  .login-box{background:var(--dark2);border:1px solid var(--border);padding:40px;width:90%;max-width:400px;clip-path:polygon(20px 0%,100% 0%,100% calc(100% - 20px),calc(100% - 20px) 100%,0% 100%,0% 20px);}
-  .login-accent{height:3px;background:linear-gradient(90deg,var(--gold),var(--magenta));margin-bottom:28px;}
-  .login-title{font-family:'Orbitron',sans-serif;font-weight:800;font-size:1rem;letter-spacing:0.25em;color:var(--gold);text-transform:uppercase;margin-bottom:6px;}
-  .login-sub{font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:var(--muted);letter-spacing:0.14em;margin-bottom:24px;}
-  .login-input{width:100%;background:rgba(255,214,10,0.04);border:1px solid rgba(255,214,10,0.2);color:var(--text);font-family:'Rajdhani',sans-serif;font-size:0.9rem;padding:10px 13px;outline:none;margin-bottom:12px;transition:border-color 0.2s;}
-  .login-input:focus{border-color:var(--gold);box-shadow:0 0 10px rgba(255,214,10,0.08);}
-  .login-btn{width:100%;font-family:'Orbitron',sans-serif;font-size:0.68rem;font-weight:700;letter-spacing:0.2em;color:var(--dark);background:var(--gold);border:none;padding:12px;cursor:pointer;clip-path:polygon(10px 0%,100% 0%,calc(100% - 10px) 100%,0% 100%);margin-top:4px;transition:background 0.2s,box-shadow 0.2s;}
-  .login-btn:hover{background:#fff;box-shadow:0 0 20px var(--gold);}
-  .login-error{font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:var(--red);letter-spacing:0.1em;margin-top:10px;min-height:18px;}
-  .login-hint{font-family:'Share Tech Mono',monospace;font-size:0.58rem;color:var(--muted);margin-top:16px;line-height:1.6;opacity:0.7;}
+/* ── Écrans ── */
+#login-screen,#loading-screen{position:fixed;inset:0;background:var(--dark);z-index:500;display:flex;align-items:center;justify-content:center;}
+#loading-screen{flex-direction:column;gap:20px;}
+#panel-screen{display:none;min-height:100vh;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.loading-text{font-family:'Share Tech Mono',monospace;font-size:.7rem;color:var(--muted);letter-spacing:.2em;animation:pulse 1.4s ease-in-out infinite;}
 
-  /* ADMIN PANEL */
-  #admin-panel{display:none;min-height:100vh;}
+/* ── Login ── */
+.login-box{background:var(--dark2);border:1px solid var(--border);padding:42px 40px;width:90%;max-width:420px;clip-path:polygon(20px 0%,100% 0%,100% calc(100% - 20px),calc(100% - 20px) 100%,0% 100%,0% 20px);}
+.login-accent{height:3px;background:linear-gradient(90deg,var(--gold),var(--magenta));margin-bottom:30px;}
+.login-title{font-family:'Orbitron',sans-serif;font-weight:800;font-size:1.05rem;letter-spacing:.25em;color:var(--gold);margin-bottom:4px;}
+.login-sub{font-family:'Share Tech Mono',monospace;font-size:.6rem;color:var(--muted);letter-spacing:.14em;margin-bottom:26px;}
+.btn-google{width:100%;display:flex;align-items:center;justify-content:center;gap:12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.15);color:#e8eaed;font-family:'Rajdhani',sans-serif;font-size:.95rem;font-weight:600;padding:12px;cursor:pointer;transition:all .2s;letter-spacing:.08em;margin-bottom:20px;}
+.btn-google:hover{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.3);box-shadow:0 0 18px rgba(255,255,255,.06);}
+.login-sep{display:flex;align-items:center;gap:12px;margin-bottom:18px;font-family:'Share Tech Mono',monospace;font-size:.58rem;color:var(--muted);letter-spacing:.15em;}
+.login-sep::before,.login-sep::after{content:'';flex:1;height:1px;background:var(--border);}
+.login-input{width:100%;background:rgba(255,214,10,.04);border:1px solid rgba(255,214,10,.2);color:var(--text);font-family:'Rajdhani',sans-serif;font-size:.9rem;padding:10px 13px;outline:none;margin-bottom:12px;transition:border-color .2s;box-sizing:border-box;}
+.login-input:focus{border-color:var(--gold);box-shadow:0 0 10px rgba(255,214,10,.08);}
+.login-btn{width:100%;font-family:'Orbitron',sans-serif;font-size:.68rem;font-weight:700;letter-spacing:.2em;color:var(--dark);background:var(--gold);border:none;padding:12px;cursor:pointer;margin-top:4px;transition:all .2s;clip-path:polygon(10px 0%,100% 0%,calc(100% - 10px) 100%,0% 100%);}
+.login-btn:hover{background:#fff;box-shadow:0 0 22px var(--gold);}
+.login-error{font-family:'Share Tech Mono',monospace;font-size:.62rem;color:var(--red);letter-spacing:.1em;margin-top:10px;min-height:18px;line-height:1.5;}
+.login-hint{font-family:'Share Tech Mono',monospace;font-size:.56rem;color:var(--muted);margin-top:18px;line-height:1.8;opacity:.65;border-top:1px solid var(--border);padding-top:14px;}
 
-  /* HEADER */
-  .admin-header{position:sticky;top:0;z-index:100;padding:0 36px;height:64px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);background:rgba(4,6,15,0.97);backdrop-filter:blur(18px);}
-  .admin-logo{font-family:'Orbitron',sans-serif;font-weight:900;font-size:1.1rem;letter-spacing:0.3em;color:var(--gold);text-shadow:0 0 20px rgba(255,214,10,0.4);}
-  .admin-logo span{color:var(--magenta);}
-  .admin-meta{display:flex;align-items:center;gap:20px;}
-  .admin-user{font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:var(--muted);letter-spacing:0.14em;}
-  .admin-user strong{color:var(--gold);}
-  .logout-btn{font-family:'Share Tech Mono',monospace;font-size:0.6rem;letter-spacing:0.14em;color:var(--muted);background:transparent;border:1px solid var(--border);padding:6px 14px;cursor:pointer;transition:all 0.2s;}
-  .logout-btn:hover{color:var(--magenta);border-color:var(--magenta);}
-  .back-link{font-family:'Share Tech Mono',monospace;font-size:0.6rem;letter-spacing:0.14em;color:var(--cyan);text-decoration:none;border:1px solid rgba(0,245,255,0.2);padding:6px 14px;transition:all 0.2s;}
-  .back-link:hover{border-color:var(--cyan);background:rgba(0,245,255,0.04);}
+/* ── Header ── */
+.admin-header{position:sticky;top:0;z-index:100;padding:0 36px;height:66px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);background:rgba(4,6,15,.97);backdrop-filter:blur(18px);}
+.admin-logo{font-family:'Orbitron',sans-serif;font-weight:900;font-size:1.1rem;letter-spacing:.3em;color:var(--gold);text-shadow:0 0 22px rgba(255,214,10,.35);}
+.admin-logo span{color:var(--magenta);}
+.admin-meta{display:flex;align-items:center;gap:16px;}
+.role-badge{font-family:'Share Tech Mono',monospace;font-size:.55rem;letter-spacing:.18em;padding:3px 10px;border:1px solid;text-transform:uppercase;}
+.role-admin{color:var(--gold);border-color:rgba(255,214,10,.5);background:rgba(255,214,10,.08);box-shadow:0 0 10px rgba(255,214,10,.12);}
+.role-modo{color:var(--cyan);border-color:rgba(0,245,255,.4);background:rgba(0,245,255,.06);}
+.admin-user{font-family:'Share Tech Mono',monospace;font-size:.62rem;color:var(--muted);letter-spacing:.1em;}
+.admin-user strong{color:var(--text);}
+.logout-btn{font-family:'Share Tech Mono',monospace;font-size:.6rem;letter-spacing:.14em;color:var(--muted);background:transparent;border:1px solid var(--border);padding:6px 14px;cursor:pointer;transition:all .2s;}
+.logout-btn:hover{color:var(--magenta);border-color:var(--magenta);}
+.back-link{font-family:'Share Tech Mono',monospace;font-size:.6rem;letter-spacing:.14em;color:var(--cyan);text-decoration:none;border:1px solid rgba(0,245,255,.2);padding:6px 14px;transition:all .2s;}
+.back-link:hover{border-color:var(--cyan);background:rgba(0,245,255,.04);}
 
-  /* STATS */
-  .admin-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;padding:28px 36px 0;}
-  .stat-card{background:var(--dark2);border:1px solid var(--border);padding:20px;position:relative;overflow:hidden;}
-  .stat-card::before{content:'';position:absolute;left:0;top:0;width:3px;height:100%;background:var(--accent,var(--cyan));}
-  .stat-card[data-accent="gold"]::before{background:var(--gold);}
-  .stat-card[data-accent="green"]::before{background:var(--green);}
-  .stat-card[data-accent="red"]::before{background:var(--red);}
-  .stat-card[data-accent="muted"]::before{background:var(--muted);}
-  .stat-card[data-accent="magenta"]::before{background:var(--magenta);}
-  .stat-val{font-family:'Orbitron',sans-serif;font-size:2rem;font-weight:800;line-height:1;margin-bottom:4px;}
-  .stat-card[data-accent="gold"] .stat-val{color:var(--gold);text-shadow:0 0 14px rgba(255,214,10,0.4);}
-  .stat-card[data-accent="green"] .stat-val{color:var(--green);text-shadow:0 0 14px rgba(0,255,136,0.4);}
-  .stat-card[data-accent="red"] .stat-val{color:var(--red);text-shadow:0 0 14px rgba(255,48,48,0.4);}
-  .stat-card[data-accent="muted"] .stat-val{color:var(--muted);}
-  .stat-card[data-accent="magenta"] .stat-val{color:#b06eff;text-shadow:0 0 14px rgba(176,110,255,0.4);}
-  .stat-lbl{font-family:'Share Tech Mono',monospace;font-size:0.6rem;color:var(--muted);letter-spacing:0.18em;text-transform:uppercase;}
+/* ── Stats ── */
+.admin-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:14px;padding:28px 36px 0;}
+.stat-card{background:var(--dark2);border:1px solid var(--border);padding:20px 18px;position:relative;overflow:hidden;transition:border-color .2s;}
+.stat-card:hover{border-color:rgba(0,245,255,.25);}
+.stat-card::before{content:'';position:absolute;left:0;top:0;width:3px;height:100%;background:var(--sc-color,var(--cyan));}
+.stat-card::after{content:'';position:absolute;bottom:0;right:0;width:40px;height:40px;border-radius:50%;background:radial-gradient(circle,var(--sc-color,var(--cyan)) 0%,transparent 70%);opacity:.06;transform:translate(8px,8px);}
+.stat-val{font-family:'Orbitron',sans-serif;font-size:2.1rem;font-weight:800;line-height:1;margin-bottom:6px;color:var(--sc-color,var(--cyan));text-shadow:0 0 16px var(--sc-color,var(--cyan));}
+.stat-lbl{font-family:'Share Tech Mono',monospace;font-size:.58rem;color:var(--muted);letter-spacing:.16em;text-transform:uppercase;}
 
-  /* TABS */
-  .admin-tabs{display:flex;gap:0;padding:28px 36px 0;border-bottom:1px solid var(--border);position:relative;}
-  .admin-tab{font-family:'Share Tech Mono',monospace;font-size:0.68rem;letter-spacing:0.14em;text-transform:uppercase;color:var(--muted);background:transparent;border:none;padding:12px 24px;cursor:pointer;transition:color 0.2s;position:relative;display:flex;align-items:center;gap:8px;}
-  .admin-tab::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:2px;background:var(--cyan);transform:scaleX(0);transition:transform 0.2s;}
-  .admin-tab.active{color:var(--cyan);}
-  .admin-tab.active::after{transform:scaleX(1);}
-  .tab-badge{font-family:'Orbitron',sans-serif;font-size:0.55rem;font-weight:700;background:var(--magenta);color:#fff;padding:2px 7px;border-radius:10px;display:none;}
+/* ── Onglets ── */
+.admin-tabs{display:flex;gap:0;padding:28px 36px 0;border-bottom:1px solid var(--border);}
+.admin-tab{font-family:'Share Tech Mono',monospace;font-size:.66rem;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);background:transparent;border:none;padding:12px 22px;cursor:pointer;transition:color .2s;position:relative;display:flex;align-items:center;gap:8px;}
+.admin-tab::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:2px;background:var(--gold);transform:scaleX(0);transition:transform .25s;}
+.admin-tab.active{color:var(--gold);}
+.admin-tab.active::after{transform:scaleX(1);}
+.tab-badge{font-family:'Orbitron',sans-serif;font-size:.52rem;font-weight:700;background:var(--magenta);color:#fff;padding:2px 7px;border-radius:10px;display:none;}
 
-  /* TAB CONTENT */
-  .tab-content{display:none;padding:28px 36px;}
-  .tab-content.active{display:block;}
+/* ── Contenu onglets ── */
+.tab-content{display:none;padding:28px 36px;}
+.tab-content.active{display:block;}
+.tab-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;padding-bottom:14px;border-bottom:1px solid var(--border);}
+.tab-title{font-family:'Orbitron',sans-serif;font-size:.75rem;font-weight:700;letter-spacing:.2em;color:var(--text);text-transform:uppercase;}
+.tab-count{font-family:'Share Tech Mono',monospace;font-size:.6rem;color:var(--muted);letter-spacing:.15em;}
 
-  /* FICHE ROW */
-  .fiche-list{display:flex;flex-direction:column;gap:16px;}
-  .fiche-row{background:var(--dark2);border:1px solid var(--border);display:grid;grid-template-columns:80px 1fr auto;gap:0;overflow:hidden;transition:border-color 0.2s;}
-  .fiche-row:hover{border-color:rgba(0,245,255,0.3);}
+/* ── Fiche rows ── */
+.fiche-list{display:flex;flex-direction:column;gap:14px;}
+.fiche-row{background:var(--dark2);border:1px solid var(--border);display:grid;grid-template-columns:86px 1fr auto;gap:0;overflow:hidden;transition:border-color .2s,transform .15s;}
+.fiche-row:hover{border-color:rgba(255,214,10,.2);transform:translateX(2px);}
+.fiche-thumb{width:86px;height:86px;overflow:hidden;flex-shrink:0;}
+.fiche-thumb img{width:100%;height:100%;object-fit:cover;object-position:top;}
+.fiche-thumb-ph{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-family:'Orbitron',sans-serif;font-size:1.5rem;font-weight:900;}
+.fiche-info{padding:14px 18px;min-width:0;}
+.fiche-name{font-family:'Orbitron',sans-serif;font-weight:700;font-size:.88rem;color:#fff;letter-spacing:.08em;margin-bottom:5px;}
+.fiche-meta{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:6px;}
+.fiche-tag{font-family:'Share Tech Mono',monospace;font-size:.54rem;letter-spacing:.1em;text-transform:uppercase;padding:2px 8px;border:1px solid;}
+.fiche-desc{font-size:.78rem;color:var(--muted);line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:480px;}
+.fiche-discord{font-family:'Share Tech Mono',monospace;font-size:.57rem;color:var(--muted);margin-top:3px;}
+.fiche-discord span{color:#7289da;}
+.fiche-date{font-family:'Share Tech Mono',monospace;font-size:.54rem;color:var(--muted);margin-top:3px;}
+.fiche-actions{padding:14px 16px;display:flex;flex-direction:column;gap:8px;justify-content:center;align-items:flex-end;flex-shrink:0;min-width:220px;}
+.fiche-actions-row{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;}
 
-  .fiche-thumb{width:80px;height:80px;overflow:hidden;flex-shrink:0;}
-  .fiche-thumb img{width:100%;height:100%;object-fit:cover;object-position:top;}
-  .fiche-thumb-ph{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-family:'Orbitron',sans-serif;font-size:1.4rem;font-weight:900;}
+/* ── Boutons ── */
+.action-btn{font-family:'Share Tech Mono',monospace;font-size:.57rem;letter-spacing:.1em;text-transform:uppercase;border:1px solid;padding:7px 14px;cursor:pointer;background:transparent;transition:all .2s;white-space:nowrap;}
+.action-btn:disabled{opacity:.3;cursor:not-allowed;}
+.action-btn.approve{color:var(--green);border-color:rgba(0,255,136,.35);}
+.action-btn.approve:hover:not(:disabled){background:rgba(0,255,136,.08);box-shadow:0 0 12px rgba(0,255,136,.12);}
+.action-btn.reject{color:var(--red);border-color:rgba(255,48,48,.35);}
+.action-btn.reject:hover:not(:disabled){background:rgba(255,48,48,.07);}
+.action-btn.delete{color:var(--muted);border-color:rgba(90,122,144,.3);}
+.action-btn.delete:hover:not(:disabled){color:var(--red);border-color:rgba(255,48,48,.3);}
+.action-btn.restore{color:var(--gold);border-color:rgba(255,214,10,.35);}
+.action-btn.restore:hover:not(:disabled){background:rgba(255,214,10,.06);}
+.action-btn.view{color:var(--cyan);border-color:rgba(0,245,255,.3);text-decoration:none;display:inline-flex;align-items:center;}
+.action-btn.view:hover{background:rgba(0,245,255,.05);}
+.reject-input{width:100%;background:rgba(255,48,48,.04);border:1px solid rgba(255,48,48,.2);color:var(--text);font-family:'Rajdhani',sans-serif;font-size:.8rem;padding:6px 10px;outline:none;transition:border-color .2s;box-sizing:border-box;}
+.reject-input:focus{border-color:var(--red);}
+.reject-input::placeholder{color:var(--muted);font-size:.75rem;}
 
-  .fiche-info{padding:14px 18px;min-width:0;}
-  .fiche-name{font-family:'Orbitron',sans-serif;font-weight:700;font-size:0.9rem;color:#fff;letter-spacing:0.08em;margin-bottom:4px;}
-  .fiche-meta{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:6px;}
-  .fiche-tag{font-family:'Share Tech Mono',monospace;font-size:0.55rem;letter-spacing:0.1em;text-transform:uppercase;padding:2px 8px;border:1px solid;}
-  .fiche-desc{font-size:0.8rem;color:var(--muted);line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:500px;}
-  .fiche-discord{font-family:'Share Tech Mono',monospace;font-size:0.58rem;color:var(--muted);margin-top:4px;}
-  .fiche-discord span{color:#7289da;}
-  .fiche-date{font-family:'Share Tech Mono',monospace;font-size:0.55rem;color:var(--muted);margin-top:2px;}
+/* ── Logs ── */
+.log-list{display:flex;flex-direction:column;gap:1px;}
+.log-row{display:grid;grid-template-columns:130px 80px 1fr 180px 100px;align-items:center;gap:0;padding:10px 16px;border:1px solid var(--border);border-top:none;font-family:'Share Tech Mono',monospace;font-size:.6rem;transition:background .15s;}
+.log-row:first-child{border-top:1px solid var(--border);}
+.log-row:hover{background:rgba(255,214,10,.02);}
+.log-row-header{background:rgba(0,0,0,.3);color:var(--muted);letter-spacing:.14em;text-transform:uppercase;font-size:.54rem;}
+.log-action{font-weight:700;letter-spacing:.12em;text-transform:uppercase;}
+.log-action.validate{color:var(--green);}
+.log-action.reject{color:var(--red);}
+.log-action.delete,.log-action.delete_pnj{color:var(--muted);}
+.log-action.restore{color:var(--gold);}
+.log-role-admin{color:var(--gold);}
+.log-role-modo{color:var(--cyan);}
+.log-target{color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.log-by{color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.log-date{color:var(--muted);text-align:right;}
 
-  .fiche-actions{padding:14px 16px;display:flex;flex-direction:column;gap:8px;justify-content:center;align-items:flex-end;flex-shrink:0;min-width:220px;}
-  .fiche-actions-row{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;}
+/* ── Empty / Toast ── */
+.empty-list{text-align:center;padding:56px 24px;font-family:'Share Tech Mono',monospace;color:var(--muted);letter-spacing:.16em;font-size:.72rem;line-height:2.2;}
+.empty-list-icon{font-size:2rem;display:block;margin-bottom:12px;opacity:.15;}
+.toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--dark2);border:1px solid var(--border);font-family:'Share Tech Mono',monospace;font-size:.7rem;letter-spacing:.14em;color:var(--text);padding:14px 28px;z-index:9000;transition:transform .3s,opacity .3s;opacity:0;clip-path:polygon(10px 0%,100% 0%,calc(100% - 10px) 100%,0% 100%);}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
+.toast.success{border-color:rgba(0,255,136,.5);color:var(--green);}
+.toast.error{border-color:rgba(255,48,48,.5);color:var(--red);}
 
-  .action-btn{font-family:'Share Tech Mono',monospace;font-size:0.58rem;letter-spacing:0.1em;text-transform:uppercase;border:1px solid;padding:7px 14px;cursor:pointer;background:transparent;transition:all 0.2s;white-space:nowrap;}
-  .action-btn.approve{color:var(--green);border-color:rgba(0,255,136,0.35);}
-  .action-btn.approve:hover{background:rgba(0,255,136,0.1);box-shadow:0 0 12px rgba(0,255,136,0.15);}
-  .action-btn.reject{color:var(--red);border-color:rgba(255,48,48,0.35);}
-  .action-btn.reject:hover{background:rgba(255,48,48,0.08);}
-  .action-btn.delete{color:var(--muted);border-color:rgba(90,122,144,0.3);}
-  .action-btn.delete:hover{color:var(--red);border-color:rgba(255,48,48,0.3);}
-  .action-btn.restore{color:var(--gold);border-color:rgba(255,214,10,0.35);}
-  .action-btn.restore:hover{background:rgba(255,214,10,0.06);}
-  .action-btn.view{color:var(--cyan);border-color:rgba(0,245,255,0.3);}
-  .action-btn.view:hover{background:rgba(0,245,255,0.05);}
-
-  .reject-input{width:100%;background:rgba(255,48,48,0.04);border:1px solid rgba(255,48,48,0.2);color:var(--text);font-family:'Rajdhani',sans-serif;font-size:0.8rem;padding:6px 10px;outline:none;transition:border-color 0.2s;}
-  .reject-input:focus{border-color:var(--red);}
-  .reject-input::placeholder{color:var(--muted);font-size:0.75rem;}
-
-  /* STATUS SELECT in approve */
-    
-  /* EMPTY */
-  .empty-list{text-align:center;padding:50px;font-family:'Share Tech Mono',monospace;color:var(--muted);letter-spacing:0.16em;font-size:0.72rem;}
-  .empty-list-icon{font-size:2rem;display:block;margin-bottom:12px;opacity:0.2;}
-
-  /* TOAST */
-  .toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--dark2);border:1px solid var(--border);font-family:'Share Tech Mono',monospace;font-size:0.7rem;letter-spacing:0.14em;color:var(--text);padding:14px 28px;z-index:9000;transition:transform 0.35s,opacity 0.35s;opacity:0;clip-path:polygon(10px 0%,100% 0%,calc(100% - 10px) 100%,0% 100%);}
-  .toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
-  .toast.success{border-color:rgba(0,255,136,0.5);color:var(--green);}
-  .toast.error{border-color:rgba(255,48,48,0.5);color:var(--red);}
-
-  @media(max-width:768px){.admin-stats{grid-template-columns:repeat(2,1fr)}.fiche-row{grid-template-columns:60px 1fr;}.fiche-actions{grid-column:1/-1;flex-direction:row;flex-wrap:wrap;padding:10px 14px;}.admin-tabs{overflow-x:auto;}.admin-header{padding:0 16px}}
+/* ── Responsive ── */
+@media(max-width:900px){.fiche-row{grid-template-columns:70px 1fr;}.fiche-actions{grid-column:1/-1;flex-direction:row;flex-wrap:wrap;padding:10px 14px;min-width:unset;}.admin-stats{grid-template-columns:repeat(3,1fr);}.log-row{grid-template-columns:100px 70px 1fr 120px;}.log-date{display:none;}}
+@media(max-width:650px){.admin-header{padding:0 16px;}.admin-tabs{overflow-x:auto;}.tab-content{padding:20px 16px;}.admin-stats{padding:20px 16px 0;grid-template-columns:repeat(2,1fr);}.admin-meta{gap:8px;}.admin-user{display:none;}.log-row{grid-template-columns:90px 1fr 100px;}.log-role,.log-by{display:none;}}
 </style>
 <script src="js/debug.js"></script>
+<script src="js/constants.js"></script>
+<script src="js/utils.js"></script>
 </head>
 <body>
-
 <div class="toast" id="toast"></div>
 
-<!-- LOGIN -->
+<!-- ══════════ LOGIN ══════════ -->
 <div id="login-screen">
   <div class="login-box">
     <div class="login-accent"></div>
     <div class="login-title">⚙ Panel Admin</div>
     <div class="login-sub">JAHARTA // ACCÈS RÉSERVÉ AUX ADMINISTRATEURS</div>
+
+    <button class="btn-google" onclick="loginGoogle()">
+      <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+        <path fill="#4285F4" d="M16.51 8H8.98v3h4.3c-.18 1-.74 1.48-1.6 2.04v2.01h2.6a7.8 7.8 0 0 0 2.38-5.88c0-.57-.05-.66-.15-1.18z"/>
+        <path fill="#34A853" d="M8.98 17c2.16 0 3.97-.72 5.3-1.94l-2.6-2a4.8 4.8 0 0 1-7.18-2.54H1.83v2.07A8 8 0 0 0 8.98 17z"/>
+        <path fill="#FBBC05" d="M4.5 10.52a4.8 4.8 0 0 1 0-3.04V5.41H1.83a8 8 0 0 0 0 7.18l2.67-2.07z"/>
+        <path fill="#EA4335" d="M8.98 4.18c1.17 0 2.23.4 3.06 1.2l2.3-2.3A8 8 0 0 0 1.83 5.4L4.5 7.49a4.77 4.77 0 0 1 4.48-3.3z"/>
+      </svg>
+      Se connecter avec Google
+    </button>
+
+    <div class="login-sep">ou</div>
     <input type="email"    class="login-input" id="login-email"    placeholder="Email administrateur" onkeydown="if(event.key==='Enter')adminLogin()">
     <input type="password" class="login-input" id="login-password" placeholder="Mot de passe"        onkeydown="if(event.key==='Enter')adminLogin()">
     <button class="login-btn" onclick="adminLogin()">▸ CONNEXION</button>
     <div class="login-error" id="login-error"></div>
     <div style="text-align:center;margin-top:18px;">
-      <a href="index.html" style="font-family:'Share Tech Mono',monospace;font-size:0.6rem;letter-spacing:0.14em;color:var(--muted);text-decoration:none;border:1px solid var(--border);padding:9px 22px;display:inline-block;transition:color 0.2s,border-color 0.2s;" onmouseover="this.style.color='var(--cyan)';this.style.borderColor='rgba(0,245,255,0.35)'" onmouseout="this.style.color='';this.style.borderColor=''">← Retour à l'accueil</a>
+      <a href="index.html" style="font-family:'Share Tech Mono',monospace;font-size:.6rem;letter-spacing:.14em;color:var(--muted);text-decoration:none;border:1px solid var(--border);padding:9px 22px;display:inline-block;transition:color .2s,border-color .2s;" onmouseover="this.style.color='var(--cyan)';this.style.borderColor='rgba(0,245,255,0.35)'" onmouseout="this.style.color='';this.style.borderColor=''">← Retour à l'accueil</a>
     </div>
     <div class="login-hint">
-      ▸ Créez un compte admin sur <strong>console.firebase.google.com</strong><br>
-      Authentication → Users → Add user<br>
-      ▸ Puis connectez-vous ici avec cet email/mdp.
+      ▸ Créez les admins dans Firebase Authentication<br>
+      ▸ Puis ajoutez dans Firestore : <strong>admins/{uid}</strong><br>
+      &nbsp;&nbsp;avec le champ <strong>role: "admin"</strong> ou <strong>"modo"</strong>
     </div>
   </div>
 </div>
 
-<!-- ADMIN PANEL -->
-<div id="admin-panel">
+<!-- ══════════ LOADING ══════════ -->
+<div id="loading-screen" style="display:none;">
+  <div style="font-family:'Orbitron',sans-serif;font-size:1.5rem;font-weight:900;color:var(--gold);letter-spacing:.3em;text-shadow:0 0 30px rgba(255,214,10,.4);">JAHARTA</div>
+  <div class="loading-text">▸ VÉRIFICATION ACCÈS EN COURS...</div>
+</div>
+
+<!-- ══════════ PANEL ══════════ -->
+<div id="panel-screen">
 
   <div class="admin-header">
     <div class="admin-logo">JAHARTA <span>//</span> ADMIN</div>
     <div class="admin-meta">
-      <div class="admin-user">Connecté : <strong id="admin-email"></strong></div>
-      <a href="index.html" class="back-link">← Retour au site</a>
+      <span class="role-badge" id="role-badge">—</span>
+      <div class="admin-user">Connecté : <strong id="admin-name"></strong></div>
+      <a href="index.html" class="back-link">← Site</a>
       <button class="logout-btn" onclick="adminLogout()">Déconnexion</button>
     </div>
   </div>
 
-  <!-- STATS -->
   <div class="admin-stats">
-    <div class="stat-card" data-accent="gold">
-      <div class="stat-val" id="cnt-pending">–</div>
-      <div class="stat-lbl">En attente</div>
+    <div class="stat-card" style="--sc-color:var(--gold)">
+      <div class="stat-val" id="cnt-pending">–</div><div class="stat-lbl">En attente</div>
     </div>
-    <div class="stat-card" data-accent="green">
-      <div class="stat-val" id="cnt-approved">–</div>
-      <div class="stat-lbl">Validées</div>
+    <div class="stat-card" style="--sc-color:var(--green)">
+      <div class="stat-val" id="cnt-approved">–</div><div class="stat-lbl">Validées</div>
     </div>
-    <div class="stat-card" data-accent="red">
-      <div class="stat-val" id="cnt-rejected">–</div>
-      <div class="stat-lbl">Rejetées</div>
+    <div class="stat-card" style="--sc-color:var(--red)">
+      <div class="stat-val" id="cnt-rejected">–</div><div class="stat-lbl">Rejetées</div>
     </div>
-    <div class="stat-card" data-accent="muted">
-      <div class="stat-val" id="cnt-total">–</div>
-      <div class="stat-lbl">Total</div>
+    <div class="stat-card" style="--sc-color:var(--muted)">
+      <div class="stat-val" id="cnt-total">–</div><div class="stat-lbl">Total fiches</div>
     </div>
-    <div class="stat-card" data-accent="magenta">
-      <div class="stat-val" id="cnt-pnj">–</div>
-      <div class="stat-lbl">PNJ</div>
+    <div class="stat-card" style="--sc-color:#b06eff">
+      <div class="stat-val" id="cnt-pnj">–</div><div class="stat-lbl">PNJ</div>
+    </div>
+    <div class="stat-card" style="--sc-color:var(--cyan)">
+      <div class="stat-val" id="cnt-logs">–</div><div class="stat-lbl">Actions loguées</div>
     </div>
   </div>
 
-  <!-- TABS -->
   <div class="admin-tabs">
-    <button class="admin-tab active" onclick="switchTab('pending', this)">
-      En attente
-      <span class="tab-badge" id="badge-pending"></span>
+    <button class="admin-tab active" id="tab-btn-pending" onclick="switchTab('pending',this)">
+      En attente <span class="tab-badge" id="badge-pending"></span>
     </button>
-    <button class="admin-tab" onclick="switchTab('approved', this)">Validées</button>
-    <button class="admin-tab" onclick="switchTab('rejected', this)">Rejetées</button>
-    <button class="admin-tab" onclick="switchTab('pnj', this)">
-      PNJ
-      <span class="tab-badge" id="badge-pnj" style="display:none;background:#b06eff"></span>
+    <button class="admin-tab" onclick="switchTab('approved',this)">Validées</button>
+    <button class="admin-tab" onclick="switchTab('rejected',this)">Rejetées</button>
+    <button class="admin-tab" onclick="switchTab('pnj',this)">
+      PNJ <span class="tab-badge" id="badge-pnj" style="background:#b06eff"></span>
+    </button>
+    <button class="admin-tab" id="tab-btn-logs" style="display:none" onclick="switchTab('logs',this)">
+      Logs <span style="font-family:'Share Tech Mono',monospace;font-size:.5rem;color:var(--muted);padding:2px 6px;border:1px solid rgba(0,245,255,.2)">ADMIN</span>
     </button>
   </div>
 
-  <!-- TAB: PENDING -->
   <div class="tab-content active" id="tab-pending">
+    <div class="tab-header">
+      <div class="tab-title">⟳ Fiches en attente</div>
+      <div class="tab-count" id="lbl-pending">—</div>
+    </div>
     <div class="fiche-list" id="table-pending">
       <div class="empty-list"><span class="empty-list-icon">⟳</span>Chargement...</div>
     </div>
   </div>
 
-  <!-- TAB: APPROVED -->
   <div class="tab-content" id="tab-approved">
+    <div class="tab-header">
+      <div class="tab-title">✓ Fiches validées</div>
+      <div class="tab-count" id="lbl-approved">—</div>
+    </div>
     <div class="fiche-list" id="table-approved">
       <div class="empty-list"><span class="empty-list-icon">⟳</span>Chargement...</div>
     </div>
   </div>
 
-  <!-- TAB: REJECTED -->
   <div class="tab-content" id="tab-rejected">
+    <div class="tab-header">
+      <div class="tab-title">✗ Fiches rejetées</div>
+      <div class="tab-count" id="lbl-rejected">—</div>
+    </div>
     <div class="fiche-list" id="table-rejected">
       <div class="empty-list"><span class="empty-list-icon">⟳</span>Chargement...</div>
     </div>
   </div>
 
-  <!-- TAB: PNJ -->
   <div class="tab-content" id="tab-pnj">
-    <div style="display:flex;justify-content:flex-end;margin-bottom:18px;">
-      <a href="pnj.html" target="_blank" style="font-family:'Share Tech Mono',monospace;font-size:0.6rem;letter-spacing:0.14em;color:#b06eff;border:1px solid rgba(176,110,255,0.35);padding:7px 14px;text-decoration:none;transition:all 0.2s;background:transparent;" onmouseover="this.style.background='rgba(176,110,255,0.06)'" onmouseout="this.style.background='transparent'">↗ Voir page PNJ publique</a>
+    <div class="tab-header">
+      <div class="tab-title">◈ PNJ</div>
+      <a href="pnj.html" target="_blank" class="action-btn view">↗ Page PNJ publique</a>
     </div>
     <div class="fiche-list" id="table-pnj">
       <div class="empty-list"><span class="empty-list-icon">⟳</span>Chargement...</div>
     </div>
   </div>
 
-</div>
+  <div class="tab-content" id="tab-logs">
+    <div class="tab-header">
+      <div class="tab-title">⬡ Historique des actions</div>
+      <div class="tab-count" id="lbl-logs">—</div>
+    </div>
+    <div class="log-list" id="table-logs">
+      <div class="log-row log-row-header">
+        <span>Action</span><span>Rôle</span><span>Cible</span><span>Par</span><span>Date</span>
+      </div>
+      <div class="empty-list"><span class="empty-list-icon">⬡</span>Chargement...</div>
+    </div>
+  </div>
+
+</div><!-- /panel-screen -->
 
 <script>
-/* ════════════════════════════════════════════════════════
-   DONNÉES STATIQUES — Races et Rangs (même définition que fiches.html)
-   ════════════════════════════════════════════════════════ */
-const RACES = {
-  humanoid:  {color:'#00c8ff',label:'Humanoid'},
-  zooid:     {color:'#44ff88',label:'Zooid'},
-  mythzooid: {color:'#b06eff',label:'Mythical Zooid'},
-  demon:     {color:'#ff3030',label:'Demon'},
-  artificial:{color:'#ffd60a',label:'Artificial'},
-  semiliquid:{color:'#00e5cc',label:'Semi-Liquid'},
-  undead:    {color:'#9a8cff',label:'Undead'},
-};
-const RANKS = {
-  F:{color:'#6b7280'},E:{color:'#9ca3af'},D:{color:'#60a5fa'},
-  C:{color:'#34d399'},B:{color:'#fbbf24'},A:{color:'#f97316'},
-  S:{color:'#ef4444'},SS:{color:'#ff006e'},SSS:{color:'#ffd60a'},
-  X:{color:'#e040fb'},Z:{color:'#ffffff'},
-};
+/* ════════════════════════════════════════════════════════════════════
+   FONCTIONS DOM — non-module (accès à window._adminRole)
+   ════════════════════════════════════════════════════════════════════ */
 
-/* ── Gestion des onglets (En attente / Validées / Rejetées / PNJ) ── */
 function switchTab(name, btn) {
   document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
@@ -514,107 +570,190 @@ function switchTab(name, btn) {
   document.getElementById('tab-' + name).classList.add('active');
 }
 
-/**
- * Génère la liste des fiches dans un onglet donné.
- * @param {string} containerId - ID de l'élément DOM cible
- * @param {Array}  fiches       - Tableau de fiches Firestore
- * @param {string} type         - 'pending' | 'approved' | 'rejected'
- */
 function renderTable(containerId, fiches, type) {
-  const el = document.getElementById(containerId);
+  const el   = document.getElementById(containerId);
+  const role = window._adminRole || 'modo';
+  const canDelete = role === 'admin';
+
+  /* Compteur */
+  const lblMap = { 'table-pending':'lbl-pending', 'table-approved':'lbl-approved', 'table-rejected':'lbl-rejected' };
+  const lblId  = lblMap[containerId];
+  if (lblId) document.getElementById(lblId).textContent = fiches.length + ' fiche' + (fiches.length > 1 ? 's' : '');
+
   if (!fiches.length) {
     el.innerHTML = `<div class="empty-list"><span class="empty-list-icon">◈</span>${
-      type === 'pending'  ? 'Aucune fiche en attente — tout est à jour !' :
-      type === 'approved' ? 'Aucune fiche validée pour le moment.' :
-                            'Aucune fiche rejetée.'
+      type==='pending'  ? 'Aucune fiche en attente — tout est à jour !' :
+      type==='approved' ? 'Aucune fiche validée pour le moment.' : 'Aucune fiche rejetée.'
     }</div>`;
     return;
   }
 
   el.innerHTML = '';
   fiches.forEach(f => {
-    const rc = RACES[f.race] || {color:'#00c8ff', label: f.race || '?'};
-    const rk = RANKS[f.rank] || {color:'#6b7280'};
-    const date = f.createdAt?.toDate ? f.createdAt.toDate().toLocaleDateString('fr-FR', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '–';
-    const desc = f.desc || f.bio || '';
+    const rc   = window.RACES?.[f.race] || { color:'#00c8ff', label: f.race||'?' };
+    const rk   = window.RANKS?.[f.rank] || { color:'#6b7280' };
+    const name = (`${f.firstname||''} ${f.lastname||''}`).trim() || '(sans nom)';
+    const date = f.createdAt?.toDate
+      ? f.createdAt.toDate().toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})
+      : '–';
+    const safeName = name.replace(/'/g, "\\'");
 
     const row = document.createElement('div');
     row.className = 'fiche-row';
-    row.id = 'row-' + f.id;
 
-    // Thumbnail
+    /* Thumbnail */
     const thumb = document.createElement('div');
     thumb.className = 'fiche-thumb';
-    if (f.photoUrl || f.photo) {
+    if (f.photoUrl) {
       const img = document.createElement('img');
-      img.src = f.photoUrl || f.photo;
-      img.onerror = function() { this.parentElement.innerHTML = `<div class="fiche-thumb-ph" style="background:linear-gradient(135deg,${rc.color}18,#04060f);color:${rc.color}">${(f.firstname||'?')[0]}</div>`; };
+      img.src = f.photoUrl; img.loading = 'lazy';
+      img.onerror = () => { thumb.innerHTML = `<div class="fiche-thumb-ph" style="background:linear-gradient(135deg,${rc.color}18,#04060f);color:${rc.color}">${name[0]||'?'}</div>`; };
       thumb.appendChild(img);
     } else {
-      thumb.innerHTML = `<div class="fiche-thumb-ph" style="background:linear-gradient(135deg,${rc.color}18,#04060f);color:${rc.color}">${(f.firstname||'?')[0]}</div>`;
+      thumb.innerHTML = `<div class="fiche-thumb-ph" style="background:linear-gradient(135deg,${rc.color}18,#04060f);color:${rc.color}">${name[0]||'?'}</div>`;
     }
     row.appendChild(thumb);
 
-    // Info
+    /* Info */
     const info = document.createElement('div');
     info.className = 'fiche-info';
     info.innerHTML = `
-      <div class="fiche-name">${f.firstname || ''} ${f.lastname || ''}</div>
+      <div class="fiche-name">${name}</div>
       <div class="fiche-meta">
         <span class="fiche-tag" style="color:${rc.color};border-color:${rc.color}44;background:${rc.color}0e">${rc.label}</span>
-        <span class="fiche-tag" style="color:${rk.color};border-color:${rk.color}44;background:${rk.color}0e">Rang ${f.rank || '?'}</span>
-        ${f.linkUrl ? `<a href="${f.linkUrl}" target="_blank" class="fiche-tag" style="color:var(--cyan);border-color:rgba(0,245,255,0.3);text-decoration:none;background:rgba(0,245,255,0.05)">↗ ${f.linkType || 'Fiche'}</a>` : ''}
+        <span class="fiche-tag" style="color:${rk.color};border-color:${rk.color}44;background:${rk.color}0e">Rang ${f.rank||'?'}</span>
+        ${f.linkUrl?`<a href="${f.linkUrl}" target="_blank" class="fiche-tag" style="color:var(--cyan);border-color:rgba(0,245,255,0.3);text-decoration:none;background:rgba(0,245,255,0.05)">↗ Fiche</a>`:''}
       </div>
-      <div class="fiche-desc">${desc}</div>
-      <div class="fiche-discord">Discord : <span>@${f.discord || '?'}</span></div>
+      <div class="fiche-desc">${f.desc||f.bio||''}</div>
+      <div class="fiche-discord">Discord : <span>@${f.discord||'?'}</span></div>
       <div class="fiche-date">Soumis le ${date}</div>
-      ${f.rejectReason ? `<div style="font-family:'Share Tech Mono',monospace;font-size:0.58rem;color:#ff3030;margin-top:4px">Motif rejet : ${f.rejectReason}</div>` : ''}
+      ${f.rejectReason?`<div style="font-family:'Share Tech Mono',monospace;font-size:.57rem;color:var(--red);margin-top:4px">Motif : ${f.rejectReason}</div>`:''}
     `;
     row.appendChild(info);
 
-    // Actions
+    /* Actions */
     const actions = document.createElement('div');
     actions.className = 'fiche-actions';
-
     if (type === 'pending') {
       actions.innerHTML = `
         <div class="fiche-actions-row">
-          <button class="action-btn approve" onclick="validateFiche('${f.id}')">✓ Valider</button>
-          <button class="action-btn delete" onclick="deleteFiche('${f.id}')">✕ Supprimer</button>
+          <button class="action-btn approve" onclick="validateFiche('${f.id}','${safeName}')">✓ Valider</button>
+          ${canDelete?`<button class="action-btn delete" onclick="deleteFiche('${f.id}','${safeName}')">✕ Suppr.</button>`:''}
         </div>
         <div class="fiche-actions-row" style="width:100%">
           <input class="reject-input" id="reject-reason-${f.id}" placeholder="Motif du rejet (optionnel)...">
         </div>
         <div class="fiche-actions-row">
-          <button class="action-btn reject" onclick="rejectFiche('${f.id}')">✗ Rejeter</button>
-        </div>
-      `;
+          <button class="action-btn reject" onclick="rejectFiche('${f.id}','${safeName}')">✗ Rejeter</button>
+        </div>`;
     } else if (type === 'approved') {
       actions.innerHTML = `
         <div class="fiche-actions-row">
-          ${f.linkUrl ? `<a href="${f.linkUrl}" target="_blank" class="action-btn view">↗ Voir fiche</a>` : ''}
-          <button class="action-btn restore" onclick="restoreFiche('${f.id}')">↺ Remettre en attente</button>
-          <button class="action-btn delete"  onclick="deleteFiche('${f.id}')">✕ Supprimer</button>
-        </div>
-      `;
+          ${f.linkUrl?`<a href="${f.linkUrl}" target="_blank" class="action-btn view">↗ Voir</a>`:''}
+          <button class="action-btn restore" onclick="restoreFiche('${f.id}','${safeName}')">↺ En attente</button>
+          ${canDelete?`<button class="action-btn delete" onclick="deleteFiche('${f.id}','${safeName}')">✕ Suppr.</button>`:''}
+        </div>`;
     } else {
       actions.innerHTML = `
         <div class="fiche-actions-row">
-          <button class="action-btn restore" onclick="restoreFiche('${f.id}')">↺ Remettre en attente</button>
-          <button class="action-btn delete"  onclick="deleteFiche('${f.id}')">✕ Supprimer</button>
-        </div>
-      `;
+          <button class="action-btn restore" onclick="restoreFiche('${f.id}','${safeName}')">↺ En attente</button>
+          ${canDelete?`<button class="action-btn delete" onclick="deleteFiche('${f.id}','${safeName}')">✕ Suppr.</button>`:''}
+        </div>`;
     }
     row.appendChild(actions);
     el.appendChild(row);
   });
 }
 
-/* ── Notification temporaire (shared avec pnj.html via même pattern) ── */
-function showToast(msg, type = 'success') {
-  const t = document.getElementById('toast');
-  t.textContent = msg; t.className = `toast ${type} show`;
-  setTimeout(() => { t.className = 'toast'; }, 4000);
+function renderPNJTable(pnjs) {
+  const el   = document.getElementById('table-pnj');
+  const role = window._adminRole || 'modo';
+  const catColors = {politique:'#60a5fa',mystique:'#b06eff',ennemi:'#ff3030',allie:'#34d399',neutre:'#fbbf24'};
+  const catLabels = {politique:'Politique',mystique:'Mystique',ennemi:'Ennemi',allie:'Allié',neutre:'Neutre'};
+
+  if (!pnjs.length) {
+    el.innerHTML = `<div class="empty-list"><span class="empty-list-icon">◆</span>Aucun PNJ créé.</div>`;
+    return;
+  }
+  el.innerHTML = '';
+  pnjs.forEach(p => {
+    const c    = catColors[p.category]||'#00c8ff';
+    const cl   = catLabels[p.category]||p.category;
+    const name = (`${p.prenom||''} ${p.nom||''}`).trim()||'(sans nom)';
+    const date = p.createdAt?.toDate ? p.createdAt.toDate().toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'}) : '–';
+    const safeName = name.replace(/'/g,"\\'");
+
+    const row = document.createElement('div');
+    row.className = 'fiche-row';
+
+    const thumb = document.createElement('div');
+    thumb.className = 'fiche-thumb';
+    if (p.photoUrl) {
+      const img = document.createElement('img'); img.src = p.photoUrl; img.loading = 'lazy';
+      img.onerror = () => { thumb.innerHTML = `<div class="fiche-thumb-ph" style="background:linear-gradient(135deg,${c}18,#04060f);color:${c}">${name[0]||'?'}</div>`; };
+      thumb.appendChild(img);
+    } else {
+      thumb.innerHTML = `<div class="fiche-thumb-ph" style="background:linear-gradient(135deg,${c}18,#04060f);color:${c}">${name[0]||'?'}</div>`;
+    }
+    row.appendChild(thumb);
+
+    const info = document.createElement('div');
+    info.className = 'fiche-info';
+    info.innerHTML = `
+      <div class="fiche-name">${name}</div>
+      <div class="fiche-meta">
+        <span class="fiche-tag" style="color:${c};border-color:${c}44;background:${c}0e">${cl}</span>
+        ${p.race?`<span class="fiche-tag" style="color:var(--muted);border-color:rgba(90,122,144,0.3)">${p.race}</span>`:''}
+        ${p.danger?`<span class="fiche-tag" style="color:var(--muted);border-color:rgba(90,122,144,0.25)">${p.danger}</span>`:''}
+      </div>
+      <div class="fiche-desc">${p.desc||''}</div>
+      ${p.titre?`<div style="font-family:'Share Tech Mono',monospace;font-size:.56rem;color:${c};margin-top:3px">// ${p.titre}</div>`:''}
+      <div class="fiche-date">Créé le ${date}</div>
+    `;
+    row.appendChild(info);
+
+    const actions = document.createElement('div');
+    actions.className = 'fiche-actions';
+    actions.innerHTML = `
+      <div class="fiche-actions-row">
+        <a href="pnj.html" target="_blank" class="action-btn view">↗ Page PNJ</a>
+        ${role==='admin'?`<button class="action-btn delete" onclick="deletePNJ('${p.id}','${safeName}')">✕ Suppr.</button>`:''}
+      </div>`;
+    row.appendChild(actions);
+    el.appendChild(row);
+  });
+}
+
+function renderLogs(logs) {
+  const el = document.getElementById('table-logs');
+  document.getElementById('lbl-logs').textContent = logs.length + ' action' + (logs.length > 1 ? 's' : '');
+  const LABELS = {
+    validate:'✓ Valider', reject:'✗ Rejeter',
+    delete:'✕ Supprimer', restore:'↺ Restaurer', delete_pnj:'✕ Suppr. PNJ'
+  };
+  const header = el.querySelector('.log-row-header');
+  el.innerHTML = '';
+  if (header) el.appendChild(header);
+
+  if (!logs.length) {
+    el.innerHTML += `<div class="empty-list"><span class="empty-list-icon">⬡</span>Aucune action loguée.</div>`;
+    return;
+  }
+  logs.forEach(l => {
+    const date = l.at?.toDate
+      ? l.at.toDate().toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'})
+      : '–';
+    const row = document.createElement('div');
+    row.className = 'log-row';
+    row.innerHTML = `
+      <span class="log-action ${l.action||''}">${LABELS[l.action]||l.action||'?'}</span>
+      <span class="log-role-${l.role||'modo'}">${(l.role||'?').toUpperCase()}</span>
+      <span class="log-target" title="${l.targetName||''}">${l.targetName||l.targetId||'?'}</span>
+      <span class="log-by"    title="${l.byEmail||''}">${l.byName||l.byEmail||'?'}</span>
+      <span class="log-date">${date}</span>
+    `;
+    el.appendChild(row);
+  });
 }
 </script>
 </body>

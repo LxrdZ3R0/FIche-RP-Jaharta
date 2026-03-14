@@ -16,10 +16,7 @@
   - Storage   : dossier pnj/
   - Auth      : badge admin + affichage conditionnel des contrôles
 
-  Note importante sur showToast :
-  - Défini dans le module ESM (l.310) ET exposé en window.showToast
-  - Les fonctions du second bloc <script> (updatePNJ, openEditPNJ)
-    utilisent window.showToast pour éviter l'erreur "not defined"
+  showToast disponible via js/utils.js
   ═══════════════════════════════════════════════════════════════════════
 -->
 <html lang="fr">
@@ -345,12 +342,7 @@ window._refreshCategorySelect=function(){
   });
 };
 
-/**
- * Affiche une notification temporaire.
- * Exposée en window.showToast pour les fonctions du second bloc script.
- */
-function showToast(msg,type='success'){const t=document.getElementById('toast');t.textContent=msg;t.className=`toast ${type} show`;setTimeout(()=>{t.className='toast';},4000);}
-window.showToast=showToast;
+/* showToast → js/utils.js (window.showToast disponible globalement) */
 </script>
 
 <link rel="stylesheet" href="css/jaharta.css">
@@ -492,6 +484,8 @@ footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:22
 @media(max-width:880px){header{padding:0 16px}nav a span{display:none}.page-wrap,.page-hero{padding:32px 16px}footer{flex-direction:column;gap:10px;text-align:center;padding:20px 16px}.pnj-grid{grid-template-columns:1fr}.frow,.frow3{grid-template-columns:1fr}}
 </style>
 <script src="js/debug.js"></script>
+<script src="js/constants.js"></script>
+<script src="js/utils.js"></script>
 </head>
 <body>
 <div class="toast" id="toast"></div>
