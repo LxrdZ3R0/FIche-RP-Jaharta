@@ -84,32 +84,39 @@ function loadCards(){
   Skeleton.show('cards-container', 6);
 
   try{
-    const q=query(collection(db,"fiches"),where("status","==","validee"));
+    /* Pas de where() ni orderBy() : Firestore peut bloquer silencieusement
+       des requêtes filtrées selon les règles de sécurité. On charge tout
+       et on filtre + trie côté client. */
+    const q=collection(db,"fiches");
     onSnapshot(q,(snap)=>{
       const container=document.getElementById("cards-container");
       const noRes=document.getElementById("no-results");
       const empty=document.getElementById("empty-state");
       if(empty)empty.remove();
-      /* Retire les skeletons dès que les vraies données arrivent */
       Skeleton.hide('cards-container');
       Array.from(container.children).forEach(el=>{if(el!==noRes&&!el.id)el.remove();});
-      /* Tri : createdAt (fiches manuelles) ou syncedAt (bot Navari) */
+
+      /* Collecter, filtrer status=validee côté client, trier */
       const docs=[];
       snap.forEach(d=>docs.push({id:d.id,...d.data()}));
-      docs.sort((a,b)=>{
+      const visible=docs.filter(d=>d.status==='validee'||(window._isAdmin&&d.status));
+      visible.sort((a,b)=>{
         const ta=a.createdAt?.toMillis?.()??( a.syncedAt?new Date(a.syncedAt).getTime():0);
         const tb=b.createdAt?.toMillis?.()??( b.syncedAt?new Date(b.syncedAt).getTime():0);
         return tb-ta;
       });
-      /* <jaharta-card> remplace buildCard() — le composant gère son propre rendu */
-      docs.forEach(d=>{
+
+      visible.forEach(d=>{
         const el=document.createElement('jaharta-card');
-        el.fiche={id:d.id,...d.data?.()||d};
+        el.fiche=d;
         container.insertBefore(el,noRes);
       });
-      animateCount(docs.length);updateCounts();
+      animateCount(visible.length);updateCounts();
       const e2=document.getElementById("empty-state2");
-      if(e2)e2.style.display=docs.length===0?"block":"none";
+      if(e2)e2.style.display=visible.length===0?"block":"none";
+    },(err)=>{
+      console.error('[Fiches] Firestore error:',err.code, err.message);
+      Skeleton.hide('cards-container');
     });
   }catch(e){
     console.warn("Firebase:",e.message);
